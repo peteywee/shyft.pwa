@@ -4,26 +4,25 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Select components are no longer needed here
 import { useAuth } from '@/hooks/use-auth';
 import type { Role } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Briefcase } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['staff', 'management'], { required_error: 'Role is required.' }),
+  // Role is no longer part of the client-side schema for registration
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -37,7 +36,7 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    control,
+    // control is no longer needed
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -51,9 +50,10 @@ export default function RegisterPage() {
   
   const onSubmit: SubmitHandler<RegisterFormValues> = async (data) => {
     setError(null);
-    const success = await registerUser(data.name, data.email, data.password, data.role as Role);
+    // Always register users as 'staff'
+    const success = await registerUser(data.name, data.email, data.password, 'staff' as Role);
     if (success) {
-      toast({ title: "Registration Successful", description: "Your account has been created." });
+      toast({ title: "Registration Successful", description: "Your account has been created as Staff. Welcome to ShYft!" });
       router.push('/dashboard');
     } else {
       setError('Registration failed. This email might already be in use.');
@@ -122,25 +122,7 @@ export default function RegisterPage() {
               />
               {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Controller
-                name="role"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger id="role" aria-invalid={errors.role ? 'true' : 'false'}>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="staff">Staff</SelectItem>
-                      <SelectItem value="management">Management</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
-            </div>
+            {/* Role selection removed from here */}
             <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
               {isSubmitting || authLoading ? 'Creating account...' : 'Create Account'}
             </Button>

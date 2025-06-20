@@ -5,7 +5,7 @@ export const mockUsers: User[] = [
     id: 'user-1',
     email: 'manager@shyft.com',
     name: 'Alex Manager',
-    role: 'management',
+    role: 'management', // Ensure this user is a manager
     avatarUrl: 'https://placehold.co/100x100.png',
     phone: '555-0101',
     department: 'Operations',

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run dev # Override CMD in Dockerfile to run dev server
+    ports:
+      - "3000:3000" # Map host port 3000 to container port 3000 (where `next dev` runs)
+    volumes:
+      - .:/app # Mount current directory to /app in container for live code changes
+      - /app/node_modules # Use node_modules from the image, don't mount host's
+      - /app/.next # Use .next directory from within the container
+    env_file:
+      - .env # Load environment variables from .env file
+    environment:
+      NODE_ENV: development
+      # POSTGRES_URL is loaded from .env
+      # WATCHPACK_POLLING: "true" # Uncomment if HMR is not working reliably in Docker
+    depends_on:
+      db:
+        condition: service_healthy # Wait for the database service to be healthy
+
+  db:
+    image: postgres:15-alpine # Use a specific version of Postgres
+    ports:
+      - "5432:5432" # Map host port 5432 to container port 5432
+    environment:
+      POSTGRES_USER: myuser # Must match the user in POSTGRES_URL
+      POSTGRES_PASSWORD: mypassword # Must match the password in POSTGRES_URL
+      POSTGRES_DB: mydb # Must match the database name in POSTGRES_URL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s # Allow time for Postgres to initialize
+
+volumes:
+  postgres_data: # Define the named volume for data persistence
+    driver: local

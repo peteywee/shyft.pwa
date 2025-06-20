@@ -1,0 +1,46 @@
+# Node modules
+node_modules
+
+# Next.js build output
+.next
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# Environment files (except .env template if you have one)
+.env
+.env*.local
+.env*.development
+.env*.production
+!/.env.example
+!/.env.template
+
+# Docker files (if they are not meant to be part of the image context itself)
+# Dockerfile
+# docker-compose.yml
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Optional: larger media files if not needed in image
+# assets/videos/
+# assets/large_images/
+
+# OS generated files
+.DS_Store
+Thumbs.db

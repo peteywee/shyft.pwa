@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -20,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { user, updateUserInContext } = useAuth();
@@ -144,3 +146,4 @@ function InfoItem({ icon: Icon, label, value, className }: InfoItemProps) {
     </div>
   );
 }
+

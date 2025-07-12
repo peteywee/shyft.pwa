@@ -50,10 +50,10 @@ export default function RegisterPage() {
   
   const onSubmit: SubmitHandler<RegisterFormValues> = async (data) => {
     setError(null);
-    // Always register users as 'staff'
-    const success = await registerUser(data.name, data.email, data.password, 'staff' as Role);
+    // Role is now determined by the AuthContext, so we don't pass it here.
+    const success = await registerUser(data.name, data.email, data.password);
     if (success) {
-      toast({ title: "Registration Successful", description: "Your account has been created as Staff. Welcome to ShYft!" });
+      toast({ title: "Registration Successful", description: "Your account has been created. Welcome to ShYft!" });
       router.push('/dashboard');
     } else {
       setError('Registration failed. This email might already be in use.');

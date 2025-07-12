@@ -11,7 +11,7 @@ import {
   signOut,
   User as FirebaseAuthUser
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, limit } from 'firebase/firestore';
 import { db } from '@/lib/db'; // Correctly import the initialized Firestore instance
 
 interface AuthContextType {
@@ -82,9 +82,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [auth, router]);
 
-  const register = useCallback(async (name: string, email: string, password_DO_NOT_USE: string, role: Role): Promise<boolean> => {
+  const register = useCallback(async (name: string, email: string, password_DO_NOT_USE: string): Promise<boolean> => {
     setIsLoading(true);
     try {
+      // Check if any users exist to determine role
+      const usersCollectionRef = collection(db, 'users');
+      const q = query(usersCollectionRef, limit(1));
+      const existingUsersSnapshot = await getDocs(q);
+      const isFirstUser = existingUsersSnapshot.empty;
+      
+      const role: Role = isFirstUser ? 'management' : 'staff';
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password_DO_NOT_USE);
       const firebaseUser = userCredential.user;
       

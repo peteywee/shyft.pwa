@@ -46,13 +46,15 @@ export interface Passkey {
   lastUsed: string;
 }
 
+const WEBAUTHN_API_URL = 'https://us-central1-iron-handler-460022-q7.cloudfunctions.net/ext-firebase-web-authn-api';
+
 /**
  * Handles WebAuthn registration.
  * @param {string} email The user's email address.
  * @returns {Promise<{token: string}>} A promise that resolves with the authentication token.
  */
 export async function webAuthnRegistration(email: string): Promise<{ token: string }> {
-  const response = await fetch('/firebase-web-authn-api', {
+  const response = await fetch(WEBAUTHN_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -82,7 +84,7 @@ export async function webAuthnRegistration(email: string): Promise<{ token: stri
     },
   };
 
-  const verificationResponse = await fetch('/firebase-web-authn-api', {
+  const verificationResponse = await fetch(WEBAUTHN_API_URL, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentialForServer),
@@ -96,7 +98,7 @@ export async function webAuthnRegistration(email: string): Promise<{ token: stri
  * @returns {Promise<{token: string}>} A promise that resolves with the authentication token.
  */
 export async function webAuthnAssertion(): Promise<{ token: string }> {
-  const response = await fetch('/firebase-web-authn-api', {
+  const response = await fetch(WEBAUTHN_API_URL, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -117,7 +119,7 @@ export async function webAuthnAssertion(): Promise<{ token: string }> {
     },
   };
 
-  const verificationResponse = await fetch('/firebase-web-authn-api', {
+  const verificationResponse = await fetch(WEBAUTHN_API_URL, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentialForServer),

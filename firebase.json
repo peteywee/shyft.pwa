@@ -3,10 +3,6 @@
     "source": ".",
     "rewrites": [
       {
-        "source": "/firebase-web-authn-api",
-        "function": "ext-firebase-web-authn-api"
-      },
-      {
         "source": "**",
         "run": {
           "serviceId": "shyft-web",

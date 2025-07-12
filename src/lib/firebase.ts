@@ -1,5 +1,6 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,7 +12,7 @@ const firebaseConfig = {
 };
 
 // Add a check for the API key to provide a more helpful error message.
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "your_api_key") {
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("your_")) {
   console.error("*****************************************************************");
   console.error("Firebase API Key is missing or using the placeholder value.");
   console.error("Please follow these steps:");
@@ -22,11 +23,9 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "your_api_key") {
 }
 
 // Initialize Firebase
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-}
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-export { db };
+export { app, db, auth };

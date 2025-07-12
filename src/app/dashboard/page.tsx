@@ -12,7 +12,7 @@ import {
   doc,
   getDocs
 } from 'firebase/firestore';
-import { db } from '@/lib/db';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';

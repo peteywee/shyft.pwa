@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { db } from '@/lib/db';
+import { db } from '@/lib/firebase';
 import { 
   collection, 
   onSnapshot, 

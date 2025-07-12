@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
@@ -23,9 +23,9 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("your_")) {
 }
 
 // Initialize Firebase
-const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-export { app, db, auth };
+export { db, auth };

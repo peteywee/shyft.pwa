@@ -11,7 +11,8 @@ import {
   User as FirebaseAuthUser
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, limit } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase'; // Correctly import the initialized instances
+import { auth } from '@/lib/firebase'; // Corrected import
+import { db } from '@/lib/firebase'; // Corrected import
 
 interface AuthContextType {
   user: User | null;
@@ -32,28 +33,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  // auth is now imported directly from @/lib/firebase
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseAuthUser | null) => {
       if (firebaseUser) {
-        // User is signed in, fetch profile from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
-          // This case might happen if a user is created in Auth but not in Firestore
           setUser(null); 
         }
       } else {
-        // User is signed out
         setUser(null);
       }
       setIsLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
@@ -61,7 +57,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password_DO_NOT_USE);
-      // onAuthStateChanged will handle setting the user state
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -74,7 +69,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       await signOut(auth);
-      // onAuthStateChanged will set user to null
       router.push('/login');
     } catch (error) {
       console.error("Firebase logout error:", error);
@@ -84,7 +78,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const register = useCallback(async (name: string, email: string, password_DO_NOT_USE: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Check if any users exist to determine role
       const usersCollectionRef = collection(db, 'users');
       const q = query(usersCollectionRef, limit(1));
       const existingUsersSnapshot = await getDocs(q);
@@ -95,17 +88,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password_DO_NOT_USE);
       const firebaseUser = userCredential.user;
       
-      // Now, create the user profile in Firestore
       const newUser: Omit<User, 'id'> = {
         name,
         email,
         role,
-        avatarUrl: `https://avatar.vercel.sh/${email}.png`, // Generate a default avatar
+        avatarUrl: `https://avatar.vercel.sh/${email}.png`,
       };
       
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
 
-      // onAuthStateChanged will handle setting the user state
       setIsLoading(false);
       return true;
     } catch (error) {

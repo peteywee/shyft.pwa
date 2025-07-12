@@ -1,176 +1,159 @@
 'use client';
 
-// This file is disabled for now to bypass authentication.
-// We will re-enable it later.
-
-import type { User, Role } from '@/types';
+import type { User } from '@/types';
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  onAuthStateChanged, 
+import {
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   User as FirebaseAuthUser,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  GithubAuthProvider,
+  OAuthProvider,
+  signInWithCustomToken,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { 
+  webAuthnRegistration,
+  webAuthnAssertion,
+  PublicKeyCredentialFuture,
+  Passkey,
+} from '@/lib/webauthn';
+
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password_DO_NOT_USE: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  register: (name: string, email: string, password_DO_NOT_USE: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<boolean>;
-  updateUserInContext: (updatedUser: User) => Promise<void>;
-  deleteUserInContext: (userId: string) => Promise<void>;
-  addUserInContext: (newUser: Omit<User, 'id'>) => Promise<User | null>;
-  getAllUsers: () => Promise<User[]>;
+  signInWithGitHub: () => Promise<boolean>;
+  signInWithApple: () => Promise<boolean>;
+  registerWithPasskey: (name: string, email: string) => Promise<boolean>;
+  signInWithPasskey: () => Promise<boolean>;
+  listPasskeys: () => Promise<Passkey[]>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseAuthUser | null) => {
-      if (firebaseUser) {
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUser({ id: userDoc.id, ...userDoc.data() } as User);
-        } else {
-          // This case handles users who sign in with Google for the first time
-          const newUser: Omit<User, 'id'> = {
-            name: firebaseUser.displayName || 'New User',
-            email: firebaseUser.email || '',
-            role: 'staff', // Default role for new Google sign-ins
-            avatarUrl: firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.email}.png`,
-          };
-          await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-          setUser({ id: firebaseUser.uid, ...newUser });
-        }
+
+  const handleUser = useCallback(async (firebaseUser: FirebaseAuthUser | null) => {
+    if (firebaseUser) {
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        setUser({ id: firebaseUser.uid, ...userSnap.data() } as User);
       } else {
-        setUser(null);
+        // This is a new user from social/passkey, create a document for them
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", firebaseUser.email));
+        const querySnapshot = await getDocs(q);
+
+        if(!querySnapshot.empty) {
+           const existingUser = querySnapshot.docs[0];
+            setUser({ id: existingUser.id, ...existingUser.data() } as User);
+        } else {
+           const newUser: User = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || 'New User',
+                email: firebaseUser.email || '',
+                role: 'staff', // Default role
+            };
+            await setDoc(userRef, newUser);
+            setUser(newUser);
+        }
       }
-      setIsLoading(false);
-    });
+    } else {
+      setUser(null);
+    }
+    setIsLoading(false);
+  }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, handleUser);
     return () => unsubscribe();
-  }, []);
-
-  const login = useCallback(async (email: string, password_DO_NOT_USE: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password_DO_NOT_USE);
-      setIsLoading(false);
-      return true;
-    } catch (error) {
-      console.error("Firebase login error:", error);
-      setIsLoading(false);
-      return false;
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      await signOut(auth);
-      router.push('/login');
-    } catch (error) {
-      console.error("Firebase logout error:", error);
-    }
-  }, [router]);
-
-  const register = useCallback(async (name: string, email: string, password_DO_NOT_USE: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const usersCollectionRef = collection(db, 'users');
-      const q = query(usersCollectionRef, limit(1));
-      const existingUsersSnapshot = await getDocs(q);
-      const isFirstUser = existingUsersSnapshot.empty;
-      
-      const role: Role = isFirstUser ? 'management' : 'staff';
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password_DO_NOT_USE);
-      const firebaseUser = userCredential.user;
-      
-      const newUser: Omit<User, 'id'> = {
-        name,
-        email,
-        role,
-        avatarUrl: `https://avatar.vercel.sh/${email}.png`,
-      };
-      
-      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-
-      setIsLoading(false);
-      return true;
-    } catch (error) {
-      console.error("Firebase registration error:", error);
-      setIsLoading(false);
-      return false;
-    }
-  }, []);
-
-  const signInWithGoogle = useCallback(async (): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      setIsLoading(false);
-      return true;
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-      setIsLoading(false);
-      return false;
-    }
-  }, []);
+  }, [handleUser]);
   
-  const updateUserInContext = async (updatedUser: User) => {
-    const userDocRef = doc(db, "users", updatedUser.id);
-    await setDoc(userDocRef, updatedUser, { merge: true });
-    if(user?.id === updatedUser.id) {
-        setUser(updatedUser);
+  const performAuthAction = async (action: () => Promise<any>): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      await action();
+      return true;
+    } catch (error) {
+      console.error('Auth action error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const deleteUserInContext = async (userId: string) => {
-    const userDocRef = doc(db, "users", userId);
-    await deleteDoc(userDocRef);
+  const login = (email: string, password: string) => performAuthAction(() => signInWithEmailAndPassword(auth, email, password));
+
+  const register = (name: string, email: string, password: string) => performAuthAction(async () => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser: Omit<User, 'id'> = { name, email, role: 'staff' };
+    await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
+  });
+  
+  const logout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  const socialSignIn = (provider: GoogleAuthProvider | GithubAuthProvider | OAuthProvider) => performAuthAction(() => signInWithPopup(auth, provider));
+  const signInWithGoogle = () => socialSignIn(new GoogleAuthProvider());
+  const signInWithGitHub = () => socialSignIn(new GithubAuthProvider());
+  const signInWithApple = () => socialSignIn(new OAuthProvider('apple.com'));
+
+  const registerWithPasskey = async (name: string, email: string): Promise<boolean> => {
+    return performAuthAction(async () => {
+       const { token } = await webAuthnRegistration(email);
+       await signInWithCustomToken(auth, token);
+       // The onAuthStateChanged handler will create the user doc
+    });
+  };
+
+  const signInWithPasskey = async (): Promise<boolean> => {
+    return performAuthAction(async () => {
+        const { token } = await webAuthnAssertion();
+        await signInWithCustomToken(auth, token);
+    });
   };
   
-  const addUserInContext = async (newUser: Omit<User, 'id'>): Promise<User | null> => {
-    console.warn("addUserInContext is a placeholder and does not create a Firebase Auth user.");
-    return null; 
-  };
-
-  const getAllUsers = async (): Promise<User[]> => {
-    const usersCollectionRef = collection(db, 'users');
-    const querySnapshot = await getDocs(usersCollectionRef);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-  };
+  const listPasskeys = async (): Promise<Passkey[]> => {
+    if(!user) return [];
+    const idToken = await auth.currentUser?.getIdToken();
+    const response = await fetch('/firebase-web-authn-api', {
+      headers: { Authorization: `Bearer ${idToken}` }
+    });
+    return response.json();
+  }
 
 
   return (
     <AuthContext.Provider value={{ 
       user, 
-      isAuthenticated: !!user && !isLoading, 
+      isAuthenticated: !!user, 
       isLoading, 
       login, 
+      register, 
       logout, 
-      register,
-      signInWithGoogle,
-      updateUserInContext,
-      deleteUserInContext,
-      addUserInContext,
-      getAllUsers
+      signInWithGoogle, 
+      signInWithGitHub, 
+      signInWithApple,
+      registerWithPasskey,
+      signInWithPasskey,
+      listPasskeys,
     }}>
       {children}
     </AuthContext.Provider>

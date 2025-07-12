@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,21 +22,11 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-manager-01',
-  name: 'Dev Manager',
-  email: 'dev@example.com',
-  role: 'management',
-  phone: '123-456-7890',
-  department: 'Engineering',
-  avatarUrl: 'https://placehold.co/128x128.png'
-};
+import { MOCK_USER } from '@/lib/mock-user';
 
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(mockUser);
+  const [user, setUser] = useState<User | null>(MOCK_USER);
   const { toast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);

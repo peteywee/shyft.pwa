@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -24,14 +25,7 @@ import {
   useSidebar
 } from '@/components/ui/sidebar';
 import type { User } from '@/types';
-
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-manager-01',
-  name: 'Dev Manager',
-  email: 'dev@example.com',
-  role: 'management',
-};
+import { MOCK_USER } from '@/lib/mock-user';
 
 interface NavItem {
   href: string;
@@ -50,7 +44,7 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const user = mockUser; // Use mock user
+  const user = MOCK_USER; 
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
 

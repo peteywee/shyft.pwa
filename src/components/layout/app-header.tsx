@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,20 +16,10 @@ import Link from 'next/link';
 import { ThemeToggleButton } from '@/components/ui/theme-toggle-button';
 import { useSidebar } from '@/components/ui/sidebar'; 
 import { Logo } from '@/components/logo';
-import type { User } from '@/types';
-
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-manager-01',
-  name: 'Dev Manager',
-  email: 'dev@example.com',
-  role: 'management',
-  avatarUrl: 'https://placehold.co/100x100.png'
-};
-
+import { MOCK_USER } from '@/lib/mock-user';
 
 export function AppHeader() {
-  const user = mockUser; // Use mock user
+  const user = MOCK_USER;
   const { toggleSidebar, isMobile } = useSidebar(); 
 
   const getInitials = (name?: string) => {
@@ -37,8 +28,6 @@ export function AppHeader() {
   };
   
   const handleLogout = () => {
-    // In a real app, this would clear auth state.
-    // For now, it can just log to console or redirect to a (non-existent) login page.
     console.log("Logout clicked");
     alert("Logout functionality is disabled in dev mode.");
   }

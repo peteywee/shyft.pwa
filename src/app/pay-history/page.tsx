@@ -1,45 +1,21 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import type { Shift, User } from '@/types';
-import { format, getDay, getISODay, parseISO, startOfWeek } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-
-
-// --- Pay Calculation Constants ---
-// This would typically come from a user's profile or a settings collection.
-const HOURLY_RATE = 25; // $25/hour
-const OVERTIME_MULTIPLIER = 1.5;
-const WEEKLY_HOURS_THRESHOLD = 40;
-// ---
-
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-staff-01', // Using a staff ID for this page
-  name: 'Dev Staff',
-  email: 'staff@example.com',
-  role: 'staff',
-};
-
-interface PayPeriod {
-  id: string;
-  startDate: string;
-  endDate: string;
-  totalHours: number;
-  regularHours: number;
-  overtimeHours: number;
-  totalPay: number;
-  shifts: Shift[];
-}
+import { calculatePayPeriods, type PayPeriod } from './_utils/pay-calculator';
+import { MOCK_STAFF_USER } from '@/lib/mock-user';
 
 export default function PayHistoryPage() {
-  const user = mockUser; // Use mock user
+  const user = MOCK_STAFF_USER; 
   const { toast } = useToast();
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,54 +49,6 @@ export default function PayHistoryPage() {
     fetchShiftsAndCalculatePay();
   }, [user, toast]);
   
-  const calculatePayPeriods = (shifts: Shift[]): PayPeriod[] => {
-    const groupedByWeek: { [weekStart: string]: Shift[] } = {};
-
-    shifts.forEach(shift => {
-      const shiftDate = parseISO(shift.date);
-      // Use Monday as the start of the week
-      const weekStartDate = startOfWeek(shiftDate, { weekStartsOn: 1 });
-      const weekStartString = format(weekStartDate, 'yyyy-MM-dd');
-      
-      if (!groupedByWeek[weekStartString]) {
-        groupedByWeek[weekStartString] = [];
-      }
-      groupedByWeek[weekStartString].push(shift);
-    });
-
-    const calculatedPeriods: PayPeriod[] = Object.entries(groupedByWeek).map(([weekStart, weeklyShifts]) => {
-      let totalHours = 0;
-      weeklyShifts.forEach(shift => {
-        const start = parseISO(`${shift.date}T${shift.startTime}`);
-        const end = parseISO(`${shift.date}T${shift.endTime}`);
-        const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60); // duration in hours
-        totalHours += duration;
-      });
-
-      const regularHours = Math.min(totalHours, WEEKLY_HOURS_THRESHOLD);
-      const overtimeHours = Math.max(0, totalHours - WEEKLY_HOURS_THRESHOLD);
-
-      const regularPay = regularHours * HOURLY_RATE;
-      const overtimePay = overtimeHours * HOURLY_RATE * OVERTIME_MULTIPLIER;
-      const totalPay = regularPay + overtimePay;
-
-      const weekEndDate = new Date(weekStart);
-      weekEndDate.setDate(weekEndDate.getDate() + 6);
-
-      return {
-        id: weekStart,
-        startDate: format(parseISO(weekStart), 'MMM d, yyyy'),
-        endDate: format(weekEndDate, 'MMM d, yyyy'),
-        totalHours: parseFloat(totalHours.toFixed(2)),
-        regularHours: parseFloat(regularHours.toFixed(2)),
-        overtimeHours: parseFloat(overtimeHours.toFixed(2)),
-        totalPay: parseFloat(totalPay.toFixed(2)),
-        shifts: weeklyShifts,
-      };
-    });
-
-    return calculatedPeriods;
-  };
 
   if (isLoading) {
     return <PayHistorySkeleton />;

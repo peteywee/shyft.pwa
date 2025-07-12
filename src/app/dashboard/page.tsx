@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   collection,
   query,
@@ -15,36 +16,27 @@ import {
 import { db } from '@/lib/firebase';
 import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
-
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-manager-01',
-  name: 'Dev Manager',
-  email: 'dev@example.com',
-  role: 'management',
-};
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ShiftForm } from './_components/shift-form';
+import { MOCK_USER } from '@/lib/mock-user';
 
 export default function DashboardPage() {
-  const user = mockUser; // Use the mock user
+  const user = MOCK_USER; 
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [shiftsForDay, setShiftsForDay] = useState<Shift[]>([]);
+  const [shiftsForMonth, setShiftsForMonth] = useState<Shift[]>([]);
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
   
-  // Fetch staff users from Firestore
+  // Fetch staff users from Firestore (only once)
   useEffect(() => {
     const fetchStaff = async () => {
       try {
@@ -60,7 +52,28 @@ export default function DashboardPage() {
     fetchStaff();
   }, [toast]);
 
-  // Subscribe to shifts for the selected month for calendar view
+  // Subscribe to shifts for the selected DAY
+  useEffect(() => {
+    if (!selectedDate) return;
+    
+    const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+    const q = query(collection(db, 'shifts'), where('date', '==', formattedDate));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const dailyShiftsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Shift));
+      setShiftsForDay(dailyShiftsData);
+    }, (error) => {
+        console.error("Error fetching daily shifts:", error);
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch daily shifts.' });
+    });
+
+    return () => unsubscribe();
+  }, [selectedDate, toast]);
+  
+  // Subscribe to shifts for the selected MONTH (for calendar highlighting)
   useEffect(() => {
     if (!selectedDate) return;
     
@@ -73,22 +86,19 @@ export default function DashboardPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const shiftsData = snapshot.docs.map(doc => ({
+      const monthlyShiftsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Shift));
-      setShifts(shiftsData);
+      setShiftsForMonth(monthlyShiftsData);
     }, (error) => {
-        console.error("Error fetching shifts:", error);
-        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch shifts. Check your Firebase connection.' });
+        console.error("Error fetching monthly shifts:", error);
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch shifts for the calendar.' });
     });
 
-    return () => unsubscribe(); // Cleanup subscription
+    return () => unsubscribe();
   }, [selectedDate, toast]);
 
-  const shiftsForSelectedDate = selectedDate
-    ? shifts.filter(shift => shift.date === format(selectedDate, 'yyyy-MM-dd'))
-    : [];
 
   const handleAddShift = () => {
     if (!selectedDate) return;
@@ -134,72 +144,6 @@ export default function DashboardPage() {
        toast({ variant: 'destructive', title: 'Error', description: 'Could not save shift.' });
     }
   };
-  
-  const ShiftForm = ({ initialData, onSave }: { initialData: Partial<Shift> | null, onSave: (data: any) => void }) => {
-    const [formData, setFormData] = useState({
-      id: initialData?.id || undefined,
-      userId: initialData?.userId || '',
-      date: initialData?.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''),
-      startTime: initialData?.startTime || '09:00',
-      endTime: initialData?.endTime || '17:00',
-      title: initialData?.title || '',
-    });
-  
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-  
-    const handleSelectChange = (value: string, fieldName: string) => {
-      setFormData(prev => ({ ...prev, [fieldName]: value }));
-    };
-  
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!formData.userId || !formData.date || !formData.startTime || !formData.endTime) {
-        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill in all required shift details.' });
-        return;
-      }
-      onSave(formData);
-    };
-  
-    return (
-       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="userId">Staff Member</Label>
-          <Select name="userId" value={formData.userId} onValueChange={(value) => handleSelectChange(value, 'userId')} required>
-            <SelectTrigger id="userId">
-              <SelectValue placeholder="Select staff" />
-            </SelectTrigger>
-            <SelectContent>
-              {staffUsers.map(staff => (
-                <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="date">Date</Label>
-          <Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required />
-        </div>
-        <div>
-          <Label htmlFor="startTime">Start Time</Label>
-          <Input id="startTime" name="startTime" type="time" value={formData.startTime} onChange={handleChange} required />
-        </div>
-        <div>
-          <Label htmlFor="endTime">End Time</Label>
-          <Input id="endTime" name="endTime" type="time" value={formData.endTime} onChange={handleChange} required />
-        </div>
-         <div>
-          <Label htmlFor="title">Shift Title (Optional)</Label>
-          <Input id="title" name="title" type="text" placeholder="e.g., Opening Shift" value={formData.title} onChange={handleChange} />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setIsShiftDialogOpen(false)}>Cancel</Button>
-          <Button type="submit">Save Shift</Button>
-        </DialogFooter>
-      </form>
-    );
-  };
 
   return (
     <div className="container mx-auto py-8">
@@ -217,7 +161,7 @@ export default function DashboardPage() {
               onSelect={setSelectedDate}
               className="rounded-md border"
                modifiers={{ 
-                scheduled: shifts.map(shift => parseISO(shift.date))
+                scheduled: shiftsForMonth.map(shift => parseISO(shift.date))
               }}
               modifiersClassNames={{
                 scheduled: 'bg-accent/30 text-accent-foreground rounded-full',
@@ -241,9 +185,9 @@ export default function DashboardPage() {
             )}
           </CardHeader>
           <CardContent>
-            {shiftsForSelectedDate.length > 0 ? (
+            {shiftsForDay.length > 0 ? (
               <ul className="space-y-4">
-                {shiftsForSelectedDate.map(shift => (
+                {shiftsForDay.map(shift => (
                   <li key={shift.id} className="p-4 border rounded-lg bg-card hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start">
                       <div>
@@ -284,7 +228,12 @@ export default function DashboardPage() {
                  {currentShift?.id ? 'Modify the details for this shift.' : 'Assign a staff member to a shift for the selected date.'}
               </DialogDescription>
             </DialogHeader>
-            <ShiftForm initialData={currentShift} onSave={handleSaveShift} />
+            <ShiftForm 
+              initialData={currentShift} 
+              onSave={handleSaveShift} 
+              staffUsers={staffUsers} 
+              closeDialog={() => setIsShiftDialogOpen(false)}
+            />
           </DialogContent>
         </Dialog>
       )}

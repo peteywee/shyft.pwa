@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { 
@@ -12,7 +13,7 @@ import {
   addDoc
 } from 'firebase/firestore';
 
-import type { User, Role } from '@/types';
+import type { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit3, Trash2, ShieldCheck, User as UserIcon, AlertTriangle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,17 +33,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { UserFormDialog } from './_components/user-form-dialog';
+import { MOCK_USER } from '@/lib/mock-user';
 
-// Mock user for development without authentication
-const mockUser: User = {
-  id: 'dev-manager-01',
-  name: 'Dev Manager',
-  email: 'dev@example.com',
-  role: 'management',
-};
 
 export default function UsersPage() {
-  const currentUser = mockUser; // Use mock user
+  const currentUser = MOCK_USER; 
   const router = useRouter();
   const { toast } = useToast();
 
@@ -56,7 +49,6 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // We can keep this check, or assume dev is always a manager.
     if (currentUser?.role !== 'management') {
       router.replace('/dashboard');
       toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
@@ -73,7 +65,7 @@ export default function UsersPage() {
       setIsLoading(false);
     });
 
-    return () => unsubscribe(); // Cleanup on unmount
+    return () => unsubscribe();
   }, [currentUser, router, toast]);
   
   const getInitials = (name?: string) => {
@@ -87,7 +79,7 @@ export default function UsersPage() {
   };
   
   const handleAddUser = () => {
-    setEditingUser(null); // Clear editing user for "add" mode
+    setEditingUser(null);
     setIsUserDialogOpen(true);
   }
 
@@ -107,8 +99,6 @@ export default function UsersPage() {
         await updateDoc(userDocRef, userData);
         toast({ title: "User Updated", description: "User details have been successfully updated." });
       } else { // Adding new user
-        // Note: This only creates a Firestore document, not a Firebase Auth user.
-        // This is suitable for a dev environment where you don't need real logins for all users.
         const newUser = {
           ...userData,
           avatarUrl: `https://avatar.vercel.sh/${userData.email}.png`,
@@ -212,95 +202,21 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
-
-      <UserFormDialog 
-        isOpen={isUserDialogOpen} 
-        onOpenChange={setIsUserDialogOpen} 
-        userData={editingUser} 
-        onSave={handleSaveUser}
-      />
+      
+      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+        <DialogContent>
+             <DialogHeader>
+                <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+                <DialogDescription>
+                    {editingUser ? "Modify the user's details and role." : "Create a new user record in Firestore."}
+                </DialogDescription>
+            </DialogHeader>
+            <UserFormDialog 
+                userData={editingUser} 
+                onSave={handleSaveUser}
+            />
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-interface UserFormDialogProps {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  userData: User | null;
-  onSave: (userData: Partial<User>) => Promise<void>;
-}
-
-function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDialogProps) {
-  const [formData, setFormData] = useState<Partial<User>>({});
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    // If userData is provided, we're editing. Otherwise, we're adding.
-    setFormData(userData || { name: '', email: '', role: 'staff', department: '', phone: '' });
-  }, [userData, isOpen]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSelectChange = (value: string, fieldName: string) => {
-    setFormData(prev => ({ ...prev, [fieldName]: value as Role }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    await onSave(formData);
-    setIsSaving(false);
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{userData ? 'Edit User' : 'Add New User'}</DialogTitle>
-          <DialogDescription>
-            {userData ? "Modify the user's details and role." : "Create a new user record in Firestore."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="name">Full Name</Label>
-            <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} required />
-          </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" value={formData.email || ''} onChange={handleChange} disabled={!!userData} required />
-            {userData && <p className="text-xs text-muted-foreground mt-1">Email cannot be changed.</p>}
-          </div>
-          <div>
-            <Label htmlFor="phone">Phone (Optional)</Label>
-            <Input id="phone" name="phone" type="tel" value={formData.phone || ''} onChange={handleChange} />
-          </div>
-           <div>
-            <Label htmlFor="department">Department (Optional)</Label>
-            <Input id="department" name="department" value={formData.department || ''} onChange={handleChange} />
-          </div>
-          <div>
-            <Label htmlFor="role">Role</Label>
-            <Select name="role" value={formData.role || 'staff'} onValueChange={(value) => handleSelectChange(value, 'role')} required>
-              <SelectTrigger id="role">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="management">Management</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

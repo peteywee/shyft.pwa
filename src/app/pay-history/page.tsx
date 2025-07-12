@@ -1,7 +1,12 @@
+<<<<<<< HEAD
+=======
+export const dynamic = 'force-dynamic';
+>>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import type { Shift } from '@/types';
 import { MOCK_STAFF_USER } from '@/lib/mock-user';
 import { SEED_SHIFTS } from '@/lib/seed-data'; 
@@ -128,3 +133,6 @@ function PayHistorySkeleton() {
     </div>
   )
 }
+=======
+// ... rest of the file
+>>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421

@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "source": ".",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "shyft-web",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
+}

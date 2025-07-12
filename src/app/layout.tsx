@@ -1,47 +1,62 @@
-import type { Metadata } from 'next';
-import { PT_Sans, Playfair_Display } from 'next/font/google';
-import './globals.css';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from '@/components/ui/toaster';
-import { cn } from '@/lib/utils';
+import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { AuthProvider } from '@/contexts/auth-context'
+import { Toaster } from '@/components/ui/toaster'
+import AppLayout from '@/components/layout/app-layout'
 
-const fontSans = PT_Sans({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-sans',
-});
-
-const fontSerif = Playfair_Display({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-serif',
-});
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ShYft - Staff Management',
-  description: 'Manage your staff shifts and schedules efficiently with ShYft.',
-};
+  title: 'Shyft',
+  description: 'Staff scheduling and management',
+  generator: 'Next.js',
+  manifest: '/manifest.json',
+  keywords: ['nextjs', 'pwa', 'next-pwa'],
+  authors: [{ name: 'Your Name' }],
+  icons: [
+    { rel: 'apple-touch-icon', url: '/icons/icon-128x128.png' },
+    { rel: 'icon', url: '/icons/icon-128x128.png' },
+  ],
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={cn('font-body antialiased', fontSans.variable, fontSerif.variable)}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
+    <html lang="en">
+      <head>
+        <meta name="application-name" content="Shyft" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Shyft" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-config" content="/icons/browserconfig.xml" />
+        <meta name="msapplication-TileColor" content="#2B5797" />
+        <meta name="msapplication-tap-highlight" content="no" />
+      </head>
+      <body className={inter.className}>
+        <AuthProvider>
+          <AppLayout>
+            {children}
+          </AppLayout>
           <Toaster />
-        </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
-  );
+  )
 }

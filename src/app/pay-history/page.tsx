@@ -2,52 +2,32 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import type { Shift, User } from '@/types';
-import { format, parseISO } from 'date-fns';
+import type { Shift } from '@/types';
+import { MOCK_STAFF_USER } from '@/lib/mock-user';
+import { SEED_SHIFTS } from '@/lib/seed-data'; 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { calculatePayPeriods, type PayPeriod } from './_utils/pay-calculator';
-import { MOCK_STAFF_USER } from '@/lib/mock-user';
 
 export default function PayHistoryPage() {
   const user = MOCK_STAFF_USER; 
-  const { toast } = useToast();
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // We are now using static seed data instead of fetching from Firestore
+    // to improve performance and provide a consistent demo experience.
     if (!user) return;
 
-    const fetchShiftsAndCalculatePay = async () => {
-      setIsLoading(true);
-      
-      try {
-        const shiftsQuery = query(
-          collection(db, 'shifts'), 
-          where('userId', '==', user.id),
-          orderBy('date', 'desc')
-        );
-        
-        const querySnapshot = await getDocs(shiftsQuery);
-        const userShifts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
+    setIsLoading(true);
+    const userShifts = SEED_SHIFTS.filter(shift => shift.userId === user.id);
+    const periods = calculatePayPeriods(userShifts);
+    setPayPeriods(periods);
+    setIsLoading(false);
 
-        const periods = calculatePayPeriods(userShifts);
-        setPayPeriods(periods);
-      } catch (e) {
-         console.error("Error fetching pay history. Is your .env file configured correctly?", e)
-         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history. Check your Firebase connection.' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchShiftsAndCalculatePay();
-  }, [user, toast]);
+  }, [user]);
   
 
   if (isLoading) {

@@ -42,7 +42,6 @@ export function AppHeader() {
         )}
         {!isMobile && <Logo collapsed={true} />} 
       </div>
-      
       <div className="flex items-center gap-4">
         <ThemeToggleButton />
         {user && (
@@ -62,13 +61,13 @@ export function AppHeader() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/profile" className="flex items-center">
+                <Link href="/profile" className="flex items-center" legacyBehavior>
                   <UserCircle className="mr-2 h-4 w-4" />
                   Profile
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center">
+                <Link href="/settings" className="flex items-center" legacyBehavior>
                   <SettingsIcon className="mr-2 h-4 w-4" />
                   Settings
                 </Link>

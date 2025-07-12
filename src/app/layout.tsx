@@ -3,9 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/auth-context'
 import { Toaster } from '@/components/ui/toaster'
-import dynamic from 'next/dynamic'
-
-const AppLayout = dynamic(() => import('@/components/layout/app-layout'), { ssr: false })
+import AppLayout from '@/components/layout/app-layout-client'
 
 const inter = Inter({ subsets: ['latin'] })
 

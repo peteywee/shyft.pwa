@@ -1,5 +1,8 @@
 'use client';
 
+// This file is disabled for now to bypass authentication.
+// We will re-enable it later.
+
 import type { User, Role } from '@/types';
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,8 +14,7 @@ import {
   User as FirebaseAuthUser
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, limit } from 'firebase/firestore';
-import { auth } from '@/lib/firebase'; // Corrected import
-import { db } from '@/lib/firebase'; // Corrected import
+import { auth, db } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;

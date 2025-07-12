@@ -10,21 +10,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/use-auth';
 import { LogOut, UserCircle, Settings as SettingsIcon, PanelLeftOpen } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggleButton } from '@/components/ui/theme-toggle-button';
-import { useSidebar } from '@/components/ui/sidebar'; // Assuming this hook is available from shadcn/ui/sidebar
+import { useSidebar } from '@/components/ui/sidebar'; 
 import { Logo } from '@/components/logo';
+import type { User } from '@/types';
+
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-manager-01',
+  name: 'Dev Manager',
+  email: 'dev@example.com',
+  role: 'management',
+  avatarUrl: 'https://placehold.co/100x100.png'
+};
+
 
 export function AppHeader() {
-  const { user, logout } = useAuth();
-  const { toggleSidebar, isMobile } = useSidebar(); // useSidebar hook
+  const user = mockUser; // Use mock user
+  const { toggleSidebar, isMobile } = useSidebar(); 
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
+  
+  const handleLogout = () => {
+    // In a real app, this would clear auth state.
+    // For now, it can just log to console or redirect to a (non-existent) login page.
+    console.log("Logout clicked");
+    alert("Logout functionality is disabled in dev mode.");
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
@@ -34,7 +51,7 @@ export function AppHeader() {
              <PanelLeftOpen className="h-6 w-6" />
            </Button>
         )}
-        {!isMobile && <Logo collapsed={true} />} {/* Show icon-only logo if sidebar is not mobile type */}
+        {!isMobile && <Logo collapsed={true} />} 
       </div>
       
       <div className="flex items-center gap-4">
@@ -68,7 +85,7 @@ export function AppHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Log out
               </DropdownMenuItem>

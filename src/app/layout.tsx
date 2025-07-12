@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { PT_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
-import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 
@@ -39,10 +38,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            {children}
-            <Toaster />
-          </AuthProvider>
+          {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

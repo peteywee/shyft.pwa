@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,8 +22,20 @@ import {
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-manager-01',
+  name: 'Dev Manager',
+  email: 'dev@example.com',
+  role: 'management',
+  phone: '123-456-7890',
+  department: 'Engineering',
+  avatarUrl: 'https://placehold.co/128x128.png'
+};
+
+
 export default function ProfilePage() {
-  const { user, updateUserInContext, isLoading } = useAuth();
+  const [user, setUser] = useState<User | null>(mockUser);
   const { toast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -32,7 +43,6 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    // Initialize the editable user state when the user data is available or changes
     setEditableUser(user);
   }, [user]);
 
@@ -49,19 +59,17 @@ export default function ProfilePage() {
   const handleSave = async () => {
     if (editableUser) {
       setIsSaving(true);
-      try {
-        await updateUserInContext(editableUser);
-        toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-        setIsEditing(false);
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to update profile." });
-      } finally {
-        setIsSaving(false);
-      }
+      // In a real app, you'd save this to a backend.
+      // For now, we just update the local state.
+      console.log("Saving user (mock):", editableUser);
+      setUser(editableUser);
+      toast({ title: "Profile Updated", description: "Your profile information has been saved." });
+      setIsEditing(false);
+      setIsSaving(false);
     }
   };
 
-  if (isLoading || !user) {
+  if (!user) {
     return <ProfileSkeleton />;
   }
 
@@ -144,6 +152,14 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+interface InfoItemProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  className?: string;
+}
+
 
 function InfoItem({ icon: Icon, label, value, className }: InfoItemProps) {
   return (

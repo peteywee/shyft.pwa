@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -10,8 +9,7 @@ import {
   doc, 
   updateDoc, 
   deleteDoc,
-  // Note: Adding a new user with email/password requires Firebase Admin SDK (backend)
-  // or a more complex flow. We will disable adding new users from this page for now.
+  addDoc
 } from 'firebase/firestore';
 
 import type { User, Role } from '@/types';
@@ -38,11 +36,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-manager-01',
+  name: 'Dev Manager',
+  email: 'dev@example.com',
+  role: 'management',
+};
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth();
+  const currentUser = mockUser; // Use mock user
   const router = useRouter();
   const { toast } = useToast();
 
@@ -52,10 +56,11 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   useEffect(() => {
+    // We can keep this check, or assume dev is always a manager.
     if (currentUser?.role !== 'management') {
       router.replace('/dashboard');
       toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
-      return; // Stop further execution
+      return;
     }
 
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -64,7 +69,7 @@ export default function UsersPage() {
       setIsLoading(false);
     }, (error) => {
       console.error("Error fetching users:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not fetch users." });
+      toast({ variant: "destructive", title: "Firestore Error", description: "Could not fetch users. Check your Firebase connection." });
       setIsLoading(false);
     });
 
@@ -80,30 +85,41 @@ export default function UsersPage() {
     setEditingUser(userToEdit);
     setIsUserDialogOpen(true);
   };
+  
+  const handleAddUser = () => {
+    setEditingUser(null); // Clear editing user for "add" mode
+    setIsUserDialogOpen(true);
+  }
 
   const handleDeleteUser = async (userId: string) => {
-    // Deleting a user in Firestore does NOT delete their auth entry.
-    // This requires a Cloud Function for a complete solution.
-    // For now, we just delete the Firestore record.
     try {
       await deleteDoc(doc(db, 'users', userId));
-      toast({ title: "User Record Deleted", description: "The user's data has been removed. Their authentication entry still exists." });
+      toast({ title: "User Record Deleted", description: "The user's data has been removed from Firestore." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: "Could not delete user record." });
     }
   };
 
-  const handleSaveUser = async (userData: User) => {
-    if (!editingUser) return; // Should not happen with current UI flow
-    
+  const handleSaveUser = async (userData: Partial<User>) => {
     try {
-      const userDocRef = doc(db, 'users', editingUser.id);
-      await updateDoc(userDocRef, userData);
-      toast({ title: "User Updated", description: "User details have been successfully updated." });
+      if (userData.id) { // Editing existing user
+        const userDocRef = doc(db, 'users', userData.id);
+        await updateDoc(userDocRef, userData);
+        toast({ title: "User Updated", description: "User details have been successfully updated." });
+      } else { // Adding new user
+        // Note: This only creates a Firestore document, not a Firebase Auth user.
+        // This is suitable for a dev environment where you don't need real logins for all users.
+        const newUser = {
+          ...userData,
+          avatarUrl: `https://avatar.vercel.sh/${userData.email}.png`,
+        }
+        await addDoc(collection(db, 'users'), newUser);
+        toast({ title: "User Added", description: "New user record created in Firestore." });
+      }
       setIsUserDialogOpen(false);
       setEditingUser(null);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: "Could not update user." });
+      toast({ variant: "destructive", title: "Error", description: "Could not save user." });
     }
   };
   
@@ -117,20 +133,11 @@ export default function UsersPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline text-primary">User Management</CardTitle>
-            <CardDescription>View and edit user roles and details.</CardDescription>
+            <CardDescription>View, add, and edit user roles and details.</CardDescription>
           </div>
-           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="sm" disabled>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add User
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>New users must register themselves through the public registration page.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button size="sm" onClick={handleAddUser}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add User
+          </Button>
         </CardHeader>
         <CardContent>
            {isLoading ? (
@@ -182,7 +189,7 @@ export default function UsersPage() {
                                <AlertDialogTitle className="flex items-center gap-2">
                                 <AlertTriangle className="text-warning"/> Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action only deletes the user's data record from the application (profile, shifts, etc.). It does NOT delete their login credentials. For full deletion, you must remove the user from the Firebase Authentication console.
+                                This will permanently delete the user's data record from the application (profile, shifts, etc.). This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -198,7 +205,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>>
+            </Table>
           )}
           {!isLoading && users.length === 0 && (
             <p className="text-center text-muted-foreground py-8">No users found.</p>
@@ -216,12 +223,11 @@ export default function UsersPage() {
   );
 }
 
-// UserFormDialog component remains largely the same but the onSave prop is now async
 interface UserFormDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   userData: User | null;
-  onSave: (userData: User) => Promise<void>;
+  onSave: (userData: Partial<User>) => Promise<void>;
 }
 
 function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDialogProps) {
@@ -229,9 +235,8 @@ function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDial
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (userData) {
-      setFormData(userData);
-    }
+    // If userData is provided, we're editing. Otherwise, we're adding.
+    setFormData(userData || { name: '', email: '', role: 'staff', department: '', phone: '' });
   }, [userData, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,7 +250,7 @@ function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDial
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    await onSave(formData as User);
+    await onSave(formData);
     setIsSaving(false);
   };
 
@@ -253,8 +258,10 @@ function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDial
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Modify the user's details and role.</DialogDescription>
+          <DialogTitle>{userData ? 'Edit User' : 'Add New User'}</DialogTitle>
+          <DialogDescription>
+            {userData ? "Modify the user's details and role." : "Create a new user record in Firestore."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div>
@@ -263,8 +270,8 @@ function UserFormDialog({ isOpen, onOpenChange, userData, onSave }: UserFormDial
           </div>
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" value={formData.email || ''} disabled />
-            <p className="text-xs text-muted-foreground mt-1">Email cannot be changed.</p>
+            <Input id="email" name="email" type="email" value={formData.email || ''} onChange={handleChange} disabled={!!userData} required />
+            {userData && <p className="text-xs text-muted-foreground mt-1">Email cannot be changed.</p>}
           </div>
           <div>
             <Label htmlFor="phone">Phone (Optional)</Label>

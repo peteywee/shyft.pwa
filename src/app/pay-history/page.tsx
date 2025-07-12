@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import type { Shift } from '@/types';
+import type { Shift, User } from '@/types';
 import { format, getDay, getISODay, parseISO, startOfWeek } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+
 
 // --- Pay Calculation Constants ---
 // This would typically come from a user's profile or a settings collection.
@@ -17,6 +18,14 @@ const HOURLY_RATE = 25; // $25/hour
 const OVERTIME_MULTIPLIER = 1.5;
 const WEEKLY_HOURS_THRESHOLD = 40;
 // ---
+
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-staff-01', // Using a staff ID for this page
+  name: 'Dev Staff',
+  email: 'staff@example.com',
+  role: 'staff',
+};
 
 interface PayPeriod {
   id: string;
@@ -30,7 +39,8 @@ interface PayPeriod {
 }
 
 export default function PayHistoryPage() {
-  const { user } = useAuth();
+  const user = mockUser; // Use mock user
+  const { toast } = useToast();
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,22 +50,28 @@ export default function PayHistoryPage() {
     const fetchShiftsAndCalculatePay = async () => {
       setIsLoading(true);
       
-      const shiftsQuery = query(
-        collection(db, 'shifts'), 
-        where('userId', '==', user.id),
-        orderBy('date', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(shiftsQuery);
-      const userShifts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
+      try {
+        const shiftsQuery = query(
+          collection(db, 'shifts'), 
+          where('userId', '==', user.id),
+          orderBy('date', 'desc')
+        );
+        
+        const querySnapshot = await getDocs(shiftsQuery);
+        const userShifts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
 
-      const periods = calculatePayPeriods(userShifts);
-      setPayPeriods(periods);
-      setIsLoading(false);
+        const periods = calculatePayPeriods(userShifts);
+        setPayPeriods(periods);
+      } catch (e) {
+         console.error("Error fetching pay history. Is your .env file configured correctly?", e)
+         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history. Check your Firebase connection.' });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchShiftsAndCalculatePay();
-  }, [user]);
+  }, [user, toast]);
   
   const calculatePayPeriods = (shifts: Shift[]): PayPeriod[] => {
     const groupedByWeek: { [weekStart: string]: Shift[] } = {};

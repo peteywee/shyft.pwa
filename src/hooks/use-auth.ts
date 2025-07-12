@@ -15,8 +15,10 @@ import { AuthContext } from '@/contexts/auth-context';
  */
 export const useAuth = () => {
   const context = useContext(AuthContext);
+  // Temporarily disable the check to prevent crashes while auth is disabled.
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // throw new Error('useAuth must be used within an AuthProvider');
+    return {} as any; // Return an empty object to avoid breaking components
   }
   return context;
 };

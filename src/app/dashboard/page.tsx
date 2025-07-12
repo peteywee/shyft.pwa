@@ -13,7 +13,6 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-auth';
 import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';
 
@@ -27,8 +26,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
 
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-manager-01',
+  name: 'Dev Manager',
+  email: 'dev@example.com',
+  role: 'management',
+};
+
+
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const user = mockUser; // Use the mock user
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -39,13 +47,18 @@ export default function DashboardPage() {
   // Fetch staff users from Firestore
   useEffect(() => {
     const fetchStaff = async () => {
-      const q = query(collection(db, 'users'), where('role', '==', 'staff'));
-      const querySnapshot = await getDocs(q);
-      const staff = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      setStaffUsers(staff);
+      try {
+        const q = query(collection(db, 'users'), where('role', '==', 'staff'));
+        const querySnapshot = await getDocs(q);
+        const staff = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        setStaffUsers(staff);
+      } catch (e) {
+        console.error("Error fetching staff. Is your .env file configured correctly?", e)
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch staff users. Check your Firebase connection.' });
+      }
     };
     fetchStaff();
-  }, []);
+  }, [toast]);
 
   // Subscribe to shifts for the selected month for calendar view
   useEffect(() => {
@@ -65,10 +78,13 @@ export default function DashboardPage() {
         ...doc.data()
       } as Shift));
       setShifts(shiftsData);
+    }, (error) => {
+        console.error("Error fetching shifts:", error);
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch shifts. Check your Firebase connection.' });
     });
 
     return () => unsubscribe(); // Cleanup subscription
-  }, [selectedDate]);
+  }, [selectedDate, toast]);
 
   const shiftsForSelectedDate = selectedDate
     ? shifts.filter(shift => shift.date === format(selectedDate, 'yyyy-MM-dd'))
@@ -119,7 +135,6 @@ export default function DashboardPage() {
     }
   };
   
-  // ShiftForm remains largely the same, but it's nested here for clarity
   const ShiftForm = ({ initialData, onSave }: { initialData: Partial<Shift> | null, onSave: (data: any) => void }) => {
     const [formData, setFormData] = useState({
       id: initialData?.id || undefined,

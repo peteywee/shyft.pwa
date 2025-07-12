@@ -9,10 +9,9 @@ import {
   UserCircle,
   Settings,
   LogOut,
-  MessageCircle, // New icon for chatbot
+  MessageCircle, 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/logo';
 import { 
   Sidebar, 
@@ -24,7 +23,16 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
   useSidebar
-} from '@/components/ui/sidebar'; // Using the shadcn sidebar
+} from '@/components/ui/sidebar';
+import type { User } from '@/types';
+
+// Mock user for development without authentication
+const mockUser: User = {
+  id: 'dev-manager-01',
+  name: 'Dev Manager',
+  email: 'dev@example.com',
+  role: 'management',
+};
 
 interface NavItem {
   href: string;
@@ -37,15 +45,15 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
   { href: '/users', label: 'Users', icon: Users, roles: ['management'] },
   { href: '/pay-history', label: 'Pay History', icon: CreditCard },
-  { href: '/chatbot', label: 'Chatbot', icon: MessageCircle }, // New chatbot link
+  { href: '/chatbot', label: 'Chatbot', icon: MessageCircle },
   { href: '/profile', label: 'Profile', icon: UserCircle },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
-  const { state: sidebarState } = useSidebar(); // Get sidebar state (expanded/collapsed)
+  const user = mockUser; // Use mock user
+  const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
 
   const userCanView = (item: NavItem) => {
@@ -53,6 +61,11 @@ export function AppSidebar() {
     if (!user) return false;
     return item.roles.includes(user.role);
   };
+  
+  const handleLogout = () => {
+    console.log("Logout clicked");
+    alert("Logout functionality is disabled in dev mode.");
+  }
 
   return (
     <Sidebar collapsible="icon" side="left" variant="sidebar">
@@ -82,7 +95,7 @@ export function AppSidebar() {
       <SidebarSeparator />
       <SidebarFooter className="p-2">
         <SidebarMenuButton 
-          onClick={logout} 
+          onClick={handleLogout} 
           tooltip={isCollapsed ? "Log out" : undefined}
           className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive"
         >

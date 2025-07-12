@@ -1,6 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '@/lib/db';
+import { useAuth } from '@/hooks/use-auth';
+import type { Shift, User } from '@/types';
+import { format, parseISO } from 'date-fns';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -8,30 +24,51 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/hooks/use-auth';
-import type { Shift, User } from '@/types';
-import { mockShifts, mockUsers } from '@/lib/mock-data'; // Use actual data source in a real app
-import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-
-// Helper to get staff users
-const getStaffUsers = (allUsers: User[]): User[] => {
-  return allUsers.filter(user => user.role === 'staff');
-};
+import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, getAllUsers } = useAuth();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [shifts, setShifts] = useState<Shift[]>(mockShifts); // Initialize with mockShifts
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
-  const { toast } = useToast();
-
+  
+  // Fetch staff users from Firestore
   useEffect(() => {
-    setStaffUsers(getStaffUsers(getAllUsers()));
-  }, [getAllUsers]);
+    const fetchStaff = async () => {
+      const q = query(collection(db, 'users'), where('role', '==', 'staff'));
+      const querySnapshot = await getDocs(q);
+      const staff = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      setStaffUsers(staff);
+    };
+    fetchStaff();
+  }, []);
+
+  // Subscribe to shifts for the selected month for calendar view
+  useEffect(() => {
+    if (!selectedDate) return;
+    
+    const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+
+    const q = query(collection(db, 'shifts'), 
+      where('date', '>=', format(firstDayOfMonth, 'yyyy-MM-dd')),
+      where('date', '<=', format(lastDayOfMonth, 'yyyy-MM-dd'))
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const shiftsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Shift));
+      setShifts(shiftsData);
+    });
+
+    return () => unsubscribe(); // Cleanup subscription
+  }, [selectedDate]);
 
   const shiftsForSelectedDate = selectedDate
     ? shifts.filter(shift => shift.date === format(selectedDate, 'yyyy-MM-dd'))
@@ -48,34 +85,41 @@ export default function DashboardPage() {
     setIsShiftDialogOpen(true);
   };
 
-  const handleDeleteShift = (shiftId: string) => {
-    setShifts(prevShifts => prevShifts.filter(s => s.id !== shiftId));
-    toast({ title: 'Shift Deleted', description: 'The shift has been removed from the schedule.' });
+  const handleDeleteShift = async (shiftId: string) => {
+    try {
+      await deleteDoc(doc(db, 'shifts', shiftId));
+      toast({ title: 'Shift Deleted', description: 'The shift has been removed.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not delete shift.' });
+    }
   };
 
-  const handleSaveShift = (formData: Omit<Shift, 'id' | 'userName'> & { id?: string }) => {
+  const handleSaveShift = async (formData: Omit<Shift, 'id' | 'userName'> & { id?: string }) => {
     const staffMember = staffUsers.find(u => u.id === formData.userId);
     if (!staffMember) {
       toast({ variant: 'destructive', title: 'Error', description: 'Selected staff member not found.' });
       return;
     }
 
-    if (formData.id) { // Editing existing shift
-      setShifts(prevShifts => prevShifts.map(s => s.id === formData.id ? { ...s, ...formData, userName: staffMember.name } : s));
-      toast({ title: 'Shift Updated', description: 'The shift has been successfully updated.' });
-    } else { // Adding new shift
-      const newShift: Shift = {
-        ...formData,
-        id: `shift-${Date.now()}`,
-        userName: staffMember.name,
-      };
-      setShifts(prevShifts => [...prevShifts, newShift]);
-      toast({ title: 'Shift Added', description: 'The new shift has been added to the schedule.' });
+    const shiftData = { ...formData, userName: staffMember.name };
+
+    try {
+      if (shiftData.id) { // Editing
+        const shiftDocRef = doc(db, 'shifts', shiftData.id);
+        await updateDoc(shiftDocRef, shiftData);
+        toast({ title: 'Shift Updated', description: 'The shift has been successfully updated.' });
+      } else { // Adding
+        await addDoc(collection(db, 'shifts'), shiftData);
+        toast({ title: 'Shift Added', description: 'The new shift has been added.' });
+      }
+      setIsShiftDialogOpen(false);
+      setCurrentShift(null);
+    } catch (error) {
+       toast({ variant: 'destructive', title: 'Error', description: 'Could not save shift.' });
     }
-    setIsShiftDialogOpen(false);
-    setCurrentShift(null);
   };
   
+  // ShiftForm remains largely the same, but it's nested here for clarity
   const ShiftForm = ({ initialData, onSave }: { initialData: Partial<Shift> | null, onSave: (data: any) => void }) => {
     const [formData, setFormData] = useState({
       id: initialData?.id || undefined,
@@ -104,7 +148,7 @@ export default function DashboardPage() {
     };
   
     return (
-      <form onSubmit={handleSubmit} className="space-y-4">
+       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label htmlFor="userId">Staff Member</Label>
           <Select name="userId" value={formData.userId} onValueChange={(value) => handleSelectChange(value, 'userId')} required>
@@ -142,7 +186,6 @@ export default function DashboardPage() {
     );
   };
 
-
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-primary">Staff Schedule</h1>
@@ -158,7 +201,7 @@ export default function DashboardPage() {
               selected={selectedDate}
               onSelect={setSelectedDate}
               className="rounded-md border"
-              modifiers={{ 
+               modifiers={{ 
                 scheduled: shifts.map(shift => parseISO(shift.date))
               }}
               modifiersClassNames={{
@@ -176,7 +219,7 @@ export default function DashboardPage() {
               </CardTitle>
               <CardDescription>Manage staff assignments for this day.</CardDescription>
             </div>
-            {user?.role === 'management' && selectedDate && (
+             {user?.role === 'management' && selectedDate && (
               <Button onClick={handleAddShift} size="sm">
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Shift
               </Button>
@@ -217,13 +260,13 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {user?.role === 'management' && (
+       {user?.role === 'management' && (
         <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{currentShift?.id ? 'Edit Shift' : 'Add New Shift'}</DialogTitle>
               <DialogDescription>
-                {currentShift?.id ? 'Modify the details for this shift.' : 'Assign a staff member to a shift for the selected date.'}
+                 {currentShift?.id ? 'Modify the details for this shift.' : 'Assign a staff member to a shift for the selected date.'}
               </DialogDescription>
             </DialogHeader>
             <ShiftForm initialData={currentShift} onSave={handleSaveShift} />

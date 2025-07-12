@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,17 +21,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
-  const { user, updateUserInContext } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableUser, setEditableUser] = useState<User | null>(user);
+  const { user, updateUserInContext, isLoading } = useAuth();
   const { toast } = useToast();
-
-  if (!user || !editableUser) {
-    return <p>Loading profile...</p>;
-  }
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableUser, setEditableUser] = useState<User | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  useEffect(() => {
+    // Initialize the editable user state when the user data is available or changes
+    setEditableUser(user);
+  }, [user]);
+
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -43,21 +46,31 @@ export default function ProfilePage() {
     setEditableUser(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editableUser) {
-      updateUserInContext(editableUser);
-      toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-      setIsEditing(false);
+      setIsSaving(true);
+      try {
+        await updateUserInContext(editableUser);
+        toast({ title: "Profile Updated", description: "Your profile information has been saved." });
+        setIsEditing(false);
+      } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to update profile." });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
+  if (isLoading || !user) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <div className="container mx-auto py-8">
       <Card className="max-w-2xl mx-auto shadow-xl rounded-xl">
         <CardHeader className="text-center p-8 bg-gradient-to-br from-primary/10 to-transparent">
           <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-background shadow-lg">
-            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="profile avatar large" />
+            <AvatarImage src={user.avatarUrl} alt={user.name} />
             <AvatarFallback className="text-4xl">{getInitials(user.name)}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-3xl font-headline">{user.name}</CardTitle>
@@ -78,27 +91,31 @@ export default function ProfilePage() {
                     Make changes to your profile here. Click save when you&apos;re done.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" name="name" value={editableUser.name} onChange={handleInputChange} className="col-span-3" />
+                {editableUser && (
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="name" className="text-right">Name</Label>
+                      <Input id="name" name="name" value={editableUser.name} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="email" className="text-right">Email</Label>
+                      <Input id="email" name="email" type="email" value={editableUser.email} disabled className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="phone" className="text-right">Phone</Label>
+                      <Input id="phone" name="phone" value={editableUser.phone || ''} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="department" className="text-right">Department</Label>
+                      <Input id="department" name="department" value={editableUser.department || ''} onChange={handleInputChange} className="col-span-3" />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input id="email" name="email" type="email" value={editableUser.email} onChange={handleInputChange} className="col-span-3" disabled />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="phone" className="text-right">Phone</Label>
-                    <Input id="phone" name="phone" value={editableUser.phone || ''} onChange={handleInputChange} className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="department" className="text-right">Department</Label>
-                    <Input id="department" name="department" value={editableUser.department || ''} onChange={handleInputChange} className="col-span-3" />
-                  </div>
-                </div>
+                )}
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                  <Button onClick={handleSave}>Save changes</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save changes'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -128,13 +145,6 @@ export default function ProfilePage() {
   );
 }
 
-interface InfoItemProps {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  className?: string;
-}
-
 function InfoItem({ icon: Icon, label, value, className }: InfoItemProps) {
   return (
     <div className={cn("flex items-start space-x-3 p-3 bg-secondary/30 rounded-md", className)}>
@@ -147,3 +157,37 @@ function InfoItem({ icon: Icon, label, value, className }: InfoItemProps) {
   );
 }
 
+function ProfileSkeleton() {
+  return (
+    <div className="container mx-auto py-8">
+      <Card className="max-w-2xl mx-auto shadow-xl rounded-xl">
+        <CardHeader className="text-center p-8 bg-gradient-to-br from-primary/10 to-transparent">
+          <Skeleton className="w-32 h-32 rounded-full mx-auto mb-4" />
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-6 w-32 mx-auto mt-2" />
+        </CardHeader>
+        <CardContent className="p-8 space-y-6">
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <Separator />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Separator />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

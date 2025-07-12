@@ -9,7 +9,7 @@ import {
   UserCircle,
   Settings,
   LogOut,
-  Briefcase,
+  MessageCircle, // New icon for chatbot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
   { href: '/users', label: 'Users', icon: Users, roles: ['management'] },
   { href: '/pay-history', label: 'Pay History', icon: CreditCard },
+  { href: '/chatbot', label: 'Chatbot', icon: MessageCircle }, // New chatbot link
   { href: '/profile', label: 'Profile', icon: UserCircle },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

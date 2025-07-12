@@ -1,61 +1,32 @@
-import { Pool } from 'pg';
+import { initializeApp, getApps } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
 
-let pool: Pool | undefined;
-
-if (!process.env.POSTGRES_URL) {
-  console.warn(
-    'POSTGRES_URL environment variable is not set. Database functionality will be limited or unavailable.'
-  );
-  // Depending on your app's needs, you might throw an error here,
-  // or allow the app to run with limited (e.g., mock) data.
-  // For now, the pool remains undefined, and functions using it must check.
-} else {
-  pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    // Example SSL configuration for production (adjust as needed):
-    // ssl: {
-    //   rejectUnauthorized: process.env.NODE_ENV === 'production', 
-    //   // ca: process.env.PG_CA_CERT, // if you have a CA cert
-    // },
-  });
-
-  pool.on('connect', () => {
-    console.log('Successfully connected to PostgreSQL database via pool.');
-  });
-
-  pool.on('error', (err: Error) => {
-    console.error('Unexpected error on idle client in PostgreSQL pool', err);
-    // Consider a more robust error handling strategy for production,
-    // e.g., attempting to reconnect or shutting down gracefully.
-    process.exit(-1); 
-  });
-}
-
-/**
- * Executes a SQL query against the database.
- * @param text The SQL query string. Can include placeholders like $1, $2.
- * @param params An array of parameters to substitute into the query.
- * @returns A Promise that resolves with the query result.
- * @throws Error if the database pool is not initialized.
- */
-export const query = async (text: string, params?: any[]) => {
-  if (!pool) {
-    // If running in an environment where POSTGRES_URL might not be set (e.g. CI, local dev without DB)
-    // you could return mock data here or throw a more specific error.
-    console.error('Database pool is not initialized. Ensure POSTGRES_URL is set.');
-    throw new Error('Database connection is not available.');
-  }
-  const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log('Executed query', { text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), duration, rowCount: res.rowCount });
-    return res;
-  } catch (error) {
-    console.error('Error executing query:', { text: text.substring(0, 100) + (text.length > 100 ? '...' : ''), error });
-    throw error;
-  }
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Export the pool directly if you need to manage transactions or use features not exposed by the query function.
-export { pool };
+// Add a check for the API key to provide a more helpful error message.
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "your_api_key") {
+  console.error("*****************************************************************");
+  console.error("Firebase API Key is missing or using the placeholder value.");
+  console.error("Please follow these steps:");
+  console.error("1. Open the '.env' file in the root of your project.");
+  console.error("2. Replace the placeholder values with your actual Firebase project credentials.");
+  console.error("3. Restart your development server.");
+  console.error("*****************************************************************");
+}
+
+// Initialize Firebase
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+}
+
+const db = getFirestore(app);
+
+export { db };

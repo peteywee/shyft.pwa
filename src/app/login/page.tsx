@@ -25,7 +25,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, signInWithGoogle, isAuthenticated, isLoading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -55,6 +55,18 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    const success = await signInWithGoogle();
+    if (success) {
+      toast({ title: "Login Successful", description: "Welcome!" });
+      router.push('/dashboard');
+    } else {
+      setError('Google Sign-In failed. Please try again.');
+      toast({ variant: "destructive", title: "Login Failed", description: "Google Sign-In failed." });
+    }
+  };
+
   if (authLoading) {
      return (
       <div className="flex h-screen items-center justify-center">
@@ -77,7 +89,7 @@ export default function LoginPage() {
           <CardDescription>Log in to manage your shifts and team.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -111,6 +123,14 @@ export default function LoginPage() {
               {isSubmitting || authLoading ? 'Logging in...' : 'Log In'}
             </Button>
           </form>
+          <div className="my-4 flex items-center">
+            <div className="flex-grow border-t border-muted-foreground"></div>
+            <span className="mx-4 text-xs uppercase text-muted-foreground">Or</span>
+            <div className="flex-grow border-t border-muted-foreground"></div>
+          </div>
+           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={authLoading}>
+            Sign in with Google
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2">
           <p className="text-sm text-muted-foreground">

@@ -9,7 +9,6 @@ import {
   UserCircle,
   Settings,
   LogOut,
-  MessageCircle, 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/logo';
@@ -45,7 +44,6 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
   { href: '/users', label: 'Users', icon: Users, roles: ['management'] },
   { href: '/pay-history', label: 'Pay History', icon: CreditCard },
-  { href: '/chatbot', label: 'Chatbot', icon: MessageCircle },
   { href: '/profile', label: 'Profile', icon: UserCircle },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

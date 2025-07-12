@@ -11,7 +11,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  User as FirebaseAuthUser
+  User as FirebaseAuthUser,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, limit } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -23,6 +25,7 @@ interface AuthContextType {
   login: (email: string, password_DO_NOT_USE: string) => Promise<boolean>;
   logout: () => void;
   register: (name: string, email: string, password_DO_NOT_USE: string) => Promise<boolean>;
+  signInWithGoogle: () => Promise<boolean>;
   updateUserInContext: (updatedUser: User) => Promise<void>;
   deleteUserInContext: (userId: string) => Promise<void>;
   addUserInContext: (newUser: Omit<User, 'id'>) => Promise<User | null>;
@@ -44,7 +47,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (userDoc.exists()) {
           setUser({ id: userDoc.id, ...userDoc.data() } as User);
         } else {
-          setUser(null); 
+          // This case handles users who sign in with Google for the first time
+          const newUser: Omit<User, 'id'> = {
+            name: firebaseUser.displayName || 'New User',
+            email: firebaseUser.email || '',
+            role: 'staff', // Default role for new Google sign-ins
+            avatarUrl: firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.email}.png`,
+          };
+          await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+          setUser({ id: firebaseUser.uid, ...newUser });
         }
       } else {
         setUser(null);
@@ -107,6 +118,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return false;
     }
   }, []);
+
+  const signInWithGoogle = useCallback(async (): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      setIsLoading(false);
+      return true;
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      setIsLoading(false);
+      return false;
+    }
+  }, []);
   
   const updateUserInContext = async (updatedUser: User) => {
     const userDocRef = doc(db, "users", updatedUser.id);
@@ -141,6 +166,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login, 
       logout, 
       register,
+      signInWithGoogle,
       updateUserInContext,
       deleteUserInContext,
       addUserInContext,

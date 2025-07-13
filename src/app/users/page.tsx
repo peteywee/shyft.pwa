@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
-import { collection, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,7 +26,6 @@ export default function UsersPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 
-  // Redirect if not management or still loading
   useEffect(() => {
     if (!isAuthLoading && currentUser?.role !== 'management') {
       toast({
@@ -38,7 +37,6 @@ export default function UsersPage() {
     }
   }, [currentUser, isAuthLoading, router, toast]);
 
-  // Fetch users from Firestore
   useEffect(() => {
     if (currentUser?.role === 'management') {
       const unsubscribe = onSnapshot(collection(db, 'users'), 
@@ -59,17 +57,33 @@ export default function UsersPage() {
   
   const handleSaveUser = async (userData: Partial<User>) => {
     try {
-      if (userData.id) {
-        const userRef = doc(db, 'users', userData.id);
-        await setDoc(userRef, userData, { merge: true });
-        toast({ title: 'User Updated', description: 'The user details have been saved.' });
-      } else {
-        await addDoc(collection(db, 'users'), userData);
-        toast({ title: 'User Added', description: 'A new user has been created.' });
+      const idToken = await currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error("Authentication token not available.");
       }
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save user.');
+      }
+      
+      const successTitle = userData.id ? 'User Updated' : 'User Added';
+      const successDescription = userData.id ? 'The user details have been saved.' : 'A new user has been created.';
+      toast({ title: successTitle, description: successDescription });
+
     } catch (error) {
       console.error('Error saving user: ', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not save user details.' });
+      const message = error instanceof Error ? error.message : 'Could not save user details.';
+      toast({ variant: 'destructive', title: 'Error', description: message });
     }
   };
 

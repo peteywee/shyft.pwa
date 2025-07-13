@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { MOCK_USER } from '@/lib/mock-user';
+import { MOCK_MANAGER_USER } from '@/lib/mock-user';
 
 const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
   loading: () => <p>Loading form...</p>,
@@ -33,7 +33,7 @@ const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => m
 });
 
 export default function DashboardPage() {
-  const user = MOCK_USER; 
+  const user = MOCK_MANAGER_USER; 
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [shiftsForDay, setShiftsForDay] = useState<Shift[]>([]);

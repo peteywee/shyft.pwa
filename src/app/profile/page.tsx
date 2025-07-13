@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+export const dynamic = 'force-dynamic';
 
 'use client';
 
@@ -199,11 +199,3 @@ function ProfileSkeleton() {
     </div>
   );
 }
-=======
-export const dynamic = 'force-dynamic';
-
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
-// ... rest of the file
->>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421

@@ -17,13 +17,12 @@ import { db } from '@/lib/firebase';
 import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Edit3, Trash2, BrainCircuit } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
   loading: () => <p>Loading form...</p>,
@@ -40,10 +39,6 @@ export default function DashboardPage() {
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
 
-  const [aiQuery, setAiQuery] = useState('');
-  const [aiResponse, setAiResponse] = useState('Ask me anything about shifts, e.g., "who works tomorrow?"');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-
   const scheduledCalendarModifiers = useMemo(() => {
     return {
       scheduled: shiftsForMonth.map(shift => parseISO(shift.date))
@@ -58,8 +53,8 @@ export default function DashboardPage() {
         const staff = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         setStaffUsers(staff);
       } catch (e) {
-        console.error("Error fetching staff. Is your .env file configured correctly?", e)
-        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch staff users. Check your Firebase connection.' });
+        console.error("Error fetching staff:", e)
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch staff users.' });
       }
     };
     if (user?.role === 'management') {
@@ -74,10 +69,7 @@ export default function DashboardPage() {
     const q = query(collection(db, 'shifts'), where('date', '==', formattedDate));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const dailyShiftsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Shift));
+      const dailyShiftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
       setShiftsForDay(dailyShiftsData);
     }, (error) => {
         console.error("Error fetching daily shifts:", error);
@@ -99,10 +91,7 @@ export default function DashboardPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const monthlyShiftsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Shift));
+      const monthlyShiftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
       setShiftsForMonth(monthlyShiftsData);
     }, (error) => {
         console.error("Error fetching monthly shifts:", error);
@@ -134,62 +123,10 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAiQuery = async () => {
-    setIsAiLoading(true);
-    setAiResponse('Thinking...');
-    try {
-      const response = await fetch('/api/genkit-query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: aiQuery }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Unknown error');
-      }
-
-      const data = await response.json();
-      setAiResponse(data.text || 'No response.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error during AI query:', error);
-      setAiResponse(`Error: ${message}`);
-      toast({ variant: 'destructive', title: 'AI Query Error', description: `Failed to get AI response: ${message}` });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-primary">Staff Schedule</h1>
       
-      {user?.role === 'management' && (
-      <Card className="shadow-lg rounded-xl mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5" /> AI Assistant</CardTitle>
-          <CardDescription>Ask questions about your staff shifts using natural language.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex w-full max-w-sm items-center space-x-2">
-            <Input
-              type="text"
-              placeholder="e.g., Who is working on Monday?"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && aiQuery.trim() !== '' && !isAiLoading) { handleAiQuery(); } }}
-              disabled={isAiLoading}
-            />
-            <Button onClick={handleAiQuery} disabled={aiQuery.trim() === '' || isAiLoading}>Ask AI</Button>
-          </div>
-          <div className="mt-4 p-3 border rounded-md bg-muted text-muted-foreground min-h-[60px] flex items-center justify-center">
-            {isAiLoading ? <span className="animate-pulse">Thinking...</span> : aiResponse}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <Card className="md:col-span-1 shadow-lg rounded-xl">
           <CardHeader>

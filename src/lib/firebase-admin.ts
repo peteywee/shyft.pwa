@@ -1,11 +1,9 @@
 
 import * as admin from 'firebase-admin';
 
-// Ensure the private key is properly formatted
-const privateKey = process.env.FIREBASE_PRIVATE_KEY
-  ? process.env.FIREBASE_PRIVATE_KEY.replace(/
-/g, '
-')
+// Parse the private key from a JSON string to avoid regex issues
+const privateKey = process.env.FIREBASE_PRIVATE_KEY 
+  ? JSON.parse(process.env.FIREBASE_PRIVATE_KEY).private_key 
   : undefined;
 
 if (!admin.apps.length) {

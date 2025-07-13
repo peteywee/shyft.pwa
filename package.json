@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "analyze": "ANALYZE=true pnpm run build",
-    "seed": "./node_modules/.bin/ts-node src/scripts/seed.ts"
+    "seed": "./node_modules/.bin/ts-node src/scripts/seed.ts",
+    "build-and-start": "npm run build && npm run start"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.14.1",

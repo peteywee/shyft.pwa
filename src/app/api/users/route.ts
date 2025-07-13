@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import * as admin from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
 import type { User } from '@/types';
 
 export async function POST(request: Request) {
@@ -10,25 +10,24 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized: No token provided' }), { status: 401 });
     }
 
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     
     if (decodedToken.role !== 'management') {
          return new NextResponse(JSON.stringify({ error: 'Forbidden: Insufficient permissions' }), { status: 403 });
     }
 
     const userData: Partial<User> = await request.json();
-    const firestore = admin.firestore();
 
     if (userData.id) {
       const { id, ...dataToUpdate } = userData;
-      const userRef = firestore.doc(`users/${id}`);
+      const userRef = db.doc(`users/${id}`);
       await userRef.set(dataToUpdate, { merge: true });
       return NextResponse.json({ success: true, id });
     } else {
        if (!userData.email) {
         return new NextResponse(JSON.stringify({ error: 'Email is required for new users' }), { status: 400 });
       }
-      const newUserRef = await firestore.collection('users').add(userData);
+      const newUserRef = await db.collection('users').add(userData);
       return NextResponse.json({ success: true, id: newUserRef.id });
     }
 

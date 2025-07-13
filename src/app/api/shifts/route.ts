@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import * as admin from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
+import type { Shift } from '@/types';
 
 export async function POST(request: Request) {
   try {
@@ -9,22 +10,20 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized: No token provided' }), { status: 401 });
     }
 
-    const decodedToken = await admin.auth.verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     
     if (decodedToken.role !== 'management') {
          return new NextResponse(JSON.stringify({ error: 'Forbidden: Insufficient permissions' }), { status: 403 });
     }
 
-    const shiftData = await request.json();
+    const shiftData: Shift = await request.json();
     
-    const firestore = admin.firestore();
-
     if (shiftData.id) {
-      const shiftRef = firestore.doc(`shifts/${shiftData.id}`);
+      const shiftRef = db.doc(`shifts/${shiftData.id}`);
       await shiftRef.set(shiftData, { merge: true });
       return NextResponse.json({ success: true, id: shiftData.id });
     } else {
-      const newShiftRef = await firestore.collection('shifts').add(shiftData);
+      const newShiftRef = await db.collection('shifts').add(shiftData);
       return NextResponse.json({ success: true, id: newShiftRef.id });
     }
 

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/home/patrick/shyft/shyft.main"  # Root directory containing package.json
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"  # Root .github/workflows
+    schedule:
+      interval: "weekly"

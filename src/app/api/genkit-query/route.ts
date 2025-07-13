@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ text: result });
     
-  } catch (error)_ {
+  } catch (error) {
     console.error('API route error:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });

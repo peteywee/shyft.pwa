@@ -1,3 +1,4 @@
+
 import type { NextConfig } from 'next'
 
 const withPWA = require('next-pwa')({
@@ -55,7 +56,7 @@ const withPWA = require('next-pwa')({
       urlPattern: /\/_next\/image\?url=.+$/i,
       handler: 'StaleWhileRevalidate',
       options: {
-        cacheName: 'next-image',
+        cacheName: 'next-.ts',
         expiration: {
           maxEntries: 64,
           maxAgeSeconds: 24 * 60 * 60 // 24 hours
@@ -153,6 +154,10 @@ const withPWA = require('next-pwa')({
   ]
 })
 
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -169,4 +174,4 @@ const nextConfig: NextConfig = {
   }
 }
 
-export default withPWA(nextConfig)
+export default withPWA(withBundleAnalyzer(nextConfig));

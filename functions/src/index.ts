@@ -1,32 +1,65 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
+import { setGlobalOptions } from "firebase-functions";
+import { onRequest } from "firebase-functions/https";
 import * as logger from "firebase-functions/logger";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// Import Genkit and related modules
+import { dev, firebase, setup } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/google-ai';
+import { defineFlow, generate } from '@genkit-ai/flow';
+import * as z from 'zod'; // Import zod for schema definition
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
+// Assuming genkit-sample.ts contains some flow definition
+// For now, let's define a simple one directly here for demonstration
+// and then we can refactor it into genkit-sample.ts later if it grows.
+
 setGlobalOptions({ maxInstances: 10 });
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// Initialize Genkit
+setup({
+  defaultApp: 'default-app',
+  plugins: [
+    googleAI(),
+    firebase(), // Initialize Firebase plugin for Genkit
+  ],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});
+
+export const shiftQueryFlow = defineFlow({
+  name: 'shiftQueryFlow',
+  inputSchema: z.string().describe('Natural language query about shifts'),
+  outputSchema: z.string().describe('Generated response based on shift query'),
+}, async (query) => {
+  logger.info(`Received shift query: "${query}"`);
+
+  // This is a placeholder. In a real scenario, you'd use the LLM to
+  // parse the query, extract parameters (e.g., date, staff name),
+  // and then query Firestore.
+  const llmResponse = await generate({
+    model: 'gemini-pro', // Using a suitable model
+    prompt: `You are an assistant for a staff scheduling application. A user is asking a question about shifts. Based on the following query, provide a concise and helpful answer, or identify what information is being requested. If it's a simple greeting, respond appropriately.
+
+    User query: "${query}"
+
+    Example responses:
+    - "Searching for shifts on [Date] for [Staff Name]."
+    - "Please specify a date or staff member."
+    - "Hello! How can I help you with shifts today?"
+    - "Here are the shifts for Dev Staff next week: [list details]"
+    `,
+  });
+
+  const responseText = llmResponse.text();
+  logger.info(`LLM response: ${responseText}`);
+  return responseText;
+});
+
+// Export the Genkit flow as an HTTP Firebase Function
+export const genkit = onRequest(
+  {
+    maxInstances: 5, // Adjust as needed
+    // You might want to secure this endpoint more robustly in production
+  },
+  dev.createFirebaseHttpHandler()
+);

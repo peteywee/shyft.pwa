@@ -1,8 +1,8 @@
-<<<<<<< HEAD
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import {
   collection,
   query,
@@ -18,14 +18,19 @@ import { db } from '@/lib/firebase';
 import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, BrainCircuit } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ShiftForm } from './_components/shift-form';
+import { Input } from '@/components/ui/input';
 import { MOCK_USER } from '@/lib/mock-user';
+
+const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
+  loading: () => <p>Loading form...</p>,
+  ssr: false
+});
 
 export default function DashboardPage() {
   const user = MOCK_USER; 
@@ -36,7 +41,19 @@ export default function DashboardPage() {
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
-  
+
+  // State for AI integration
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiResponse, setAiResponse] = useState('Ask me anything about shifts, e.g., "who works tomorrow?"');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Memoize the scheduled modifiers for the calendar
+  const scheduledCalendarModifiers = useMemo(() => {
+    return {
+      scheduled: shiftsForMonth.map(shift => parseISO(shift.date))
+    };
+  }, [shiftsForMonth]);
+
   // Fetch staff users from Firestore (only once)
   useEffect(() => {
     const fetchStaff = async () => {
@@ -146,9 +163,74 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAiQuery = async () => {
+    setIsAiLoading(true);
+    setAiResponse('Thinking...');
+    try {
+      const response = await fetch('/api/genkit-query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: aiQuery }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setAiResponse(`Error: ${errorData.error || 'Unknown error'}`);
+        toast({ variant: 'destructive', title: 'AI Query Error', description: errorData.error || 'Failed to get AI response.' });
+        return;
+      }
+
+      const data = await response.json();
+      setAiResponse(data.text || 'No response.');
+    } catch (error) {
+      console.error('Error during AI query:', error);
+      setAiResponse(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast({ variant: 'destructive', title: 'AI Query Error', description: 'Failed to connect to AI service.' });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-primary">Staff Schedule</h1>
+      
+      {/* AI Query Section */}
+      <Card className="shadow-lg rounded-xl mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5" /> AI Assistant</CardTitle>
+          <CardDescription>Ask questions about your staff shifts using natural language.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex w-full max-w-sm items-center space-x-2">
+            <Input
+              type="text"
+              placeholder="e.g., Who is working on Monday?"
+              value={aiQuery}
+              onChange={(e) => setAiQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && aiQuery.trim() !== '' && !isAiLoading) {
+                  handleAiQuery();
+                }
+              }}
+              disabled={isAiLoading}
+            />
+            <Button onClick={handleAiQuery} disabled={aiQuery.trim() === '' || isAiLoading}>
+              Ask AI
+            </Button>
+          </div>
+          <div className="mt-4 p-3 border rounded-md bg-muted text-muted-foreground min-h-[60px] flex items-center justify-center">
+            {isAiLoading ? (
+              <span className="animate-pulse">Thinking...</span>
+            ) : (
+              aiResponse
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <Card className="md:col-span-1 shadow-lg rounded-xl">
           <CardHeader>
@@ -161,9 +243,7 @@ export default function DashboardPage() {
               selected={selectedDate}
               onSelect={setSelectedDate}
               className="rounded-md border"
-               modifiers={{ 
-                scheduled: shiftsForMonth.map(shift => parseISO(shift.date))
-              }}
+              modifiers={scheduledCalendarModifiers}
               modifiersClassNames={{
                 scheduled: 'bg-accent/30 text-accent-foreground rounded-full',
               }}
@@ -241,11 +321,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-=======
-export const dynamic = 'force-dynamic';
-
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
-// ... rest of the file
->>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421

@@ -10,5 +10,13 @@
         }
       }
     ]
+  },
+  "emulators": {
+    "hosting": {
+      "port": 4501
+    },
+    "functions": {
+      "port": 5003
+    }
   }
 }

@@ -1,40 +1,52 @@
-<<<<<<< HEAD
-=======
-export const dynamic = 'force-dynamic';
->>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-<<<<<<< HEAD
+import React, { useState, useEffect, useMemo } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import type { Shift } from '@/types';
 import { MOCK_STAFF_USER } from '@/lib/mock-user';
-import { SEED_SHIFTS } from '@/lib/seed-data'; 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculatePayPeriods, type PayPeriod } from './_utils/pay-calculator';
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 export default function PayHistoryPage() {
   const user = MOCK_STAFF_USER; 
-  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
+  const { toast } = useToast(); // Initialize useToast
+  const [userShifts, setUserShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // We are now using static seed data instead of fetching from Firestore
-    // to improve performance and provide a consistent demo experience.
-    if (!user) return;
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
 
-    setIsLoading(true);
-    const userShifts = SEED_SHIFTS.filter(shift => shift.userId === user.id);
-    const periods = calculatePayPeriods(userShifts);
-    setPayPeriods(periods);
-    setIsLoading(false);
+    const q = query(collection(db, 'shifts'), where('userId', '==', user.id));
 
-  }, [user]);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const shiftsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Shift));
+      setUserShifts(shiftsData);
+      setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching user shifts for pay history:", error);
+        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history shifts.' });
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id, toast]);
+
+  const payPeriods = useMemo(() => {
+    return calculatePayPeriods(userShifts);
+  }, [userShifts]);
   
-
   if (isLoading) {
     return <PayHistorySkeleton />;
   }
@@ -133,6 +145,3 @@ function PayHistorySkeleton() {
     </div>
   )
 }
-=======
-// ... rest of the file
->>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421

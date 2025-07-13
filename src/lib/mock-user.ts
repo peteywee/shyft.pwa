@@ -2,7 +2,7 @@
 import type { User } from '@/types';
 
 // Centralized mock user for development when authentication is bypassed.
-export const MOCK_USER: User = {
+export const MOCK_MANAGER_USER: User = {
   id: 'dev-manager-01',
   name: 'Dev Manager',
   email: 'dev@example.com',

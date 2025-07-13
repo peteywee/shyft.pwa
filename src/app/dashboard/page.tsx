@@ -22,7 +22,7 @@ import { PlusCircle, Edit3, Trash2, BrainCircuit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
@@ -195,7 +195,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Calendar</CardTitle>
             <CardDescription>Select a date to view shifts.</CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
               mode="single"

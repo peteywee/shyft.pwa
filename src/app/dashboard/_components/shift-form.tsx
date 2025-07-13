@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import type { Shift, User } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -12,16 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-
 interface ShiftFormProps {
     initialData: Partial<Shift> | null;
-    onSave: (data: any) => void;
     staffUsers: User[];
     closeDialog: () => void;
 }
 
-export function ShiftForm({ initialData, onSave, staffUsers, closeDialog }: ShiftFormProps) {
+export function ShiftForm({ initialData, staffUsers, closeDialog }: ShiftFormProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
+    const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
       id: initialData?.id || undefined,
       userId: initialData?.userId || '',
@@ -50,13 +51,55 @@ export function ShiftForm({ initialData, onSave, staffUsers, closeDialog }: Shif
       setFormData(prev => ({ ...prev, [fieldName]: value }));
     };
   
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!formData.userId || !formData.date || !formData.startTime || !formData.endTime) {
         toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill in all required shift details.' });
         return;
       }
-      onSave(formData);
+      
+      setIsSaving(true);
+      
+      try {
+        const idToken = await user?.getIdToken();
+        if (!idToken) {
+          throw new Error("Authentication token not available.");
+        }
+
+        const response = await fetch('/api/shifts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          // If the background sync is working, this might not be reached when offline,
+          // but it's good for handling immediate server errors when online.
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to save shift.');
+        }
+
+        toast({
+          title: 'Shift Saved!',
+          description: 'Your changes have been saved. They will sync if you are offline.',
+        });
+        closeDialog();
+
+      } catch (error) {
+        console.error("Failed to save shift:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Could not save shift. Your changes will be synced when you are back online.',
+        });
+        // We still close the dialog optimistically, as background sync will handle it.
+        closeDialog();
+      } finally {
+        setIsSaving(false);
+      }
     };
   
     return (
@@ -92,7 +135,7 @@ export function ShiftForm({ initialData, onSave, staffUsers, closeDialog }: Shif
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
-          <Button type="submit">Save Shift</Button>
+          <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Shift'}</Button>
         </DialogFooter>
       </form>
     );

@@ -1,231 +1,143 @@
-<<<<<<< HEAD
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc,
-  addDoc
-} from 'firebase/firestore';
-
-import type { User } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import type { User } from '@/types';
+import { collection, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, Trash2, ShieldCheck, User as UserIcon, AlertTriangle } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { UserFormDialog } from './_components/user-form-dialog';
-import { MOCK_USER } from '@/lib/mock-user';
-
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { UserFormDialog as UserForm } from './_components/user-form-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PlusCircle, Edit } from 'lucide-react';
 
 export default function UsersPage() {
-  const currentUser = MOCK_USER; 
+  const { user: currentUser, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 
+  // Redirect if not management or still loading
   useEffect(() => {
-    if (currentUser?.role !== 'management') {
+    if (!isAuthLoading && currentUser?.role !== 'management') {
+      toast({
+        variant: 'destructive',
+        title: 'Access Denied',
+        description: 'You must be a manager to view this page.',
+      });
       router.replace('/dashboard');
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
-      return;
     }
+  }, [currentUser, isAuthLoading, router, toast]);
 
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      setUsers(usersData);
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching users:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: "Could not fetch users. Check your Firebase connection." });
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser, router, toast]);
-  
-  const getInitials = (name?: string) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-  
-  const handleEditUser = (userToEdit: User) => {
-    setEditingUser(userToEdit);
-    setIsUserDialogOpen(true);
-  };
-  
-  const handleAddUser = () => {
-    setEditingUser(null);
-    setIsUserDialogOpen(true);
-  }
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await deleteDoc(doc(db, 'users', userId));
-      toast({ title: "User Record Deleted", description: "The user's data has been removed from Firestore." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: "Could not delete user record." });
+  // Fetch users from Firestore
+  useEffect(() => {
+    if (currentUser?.role === 'management') {
+      const unsubscribe = onSnapshot(collection(db, 'users'), 
+        (snapshot) => {
+          const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+          setUsers(usersData);
+          setIsDataLoading(false);
+        }, 
+        (error) => {
+          console.error('Error fetching users:', error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch users.' });
+          setIsDataLoading(false);
+        }
+      );
+      return () => unsubscribe();
     }
-  };
-
+  }, [currentUser, toast]);
+  
   const handleSaveUser = async (userData: Partial<User>) => {
     try {
-      if (userData.id) { // Editing existing user
-        const userDocRef = doc(db, 'users', userData.id);
-        await updateDoc(userDocRef, userData);
-        toast({ title: "User Updated", description: "User details have been successfully updated." });
-      } else { // Adding new user
-        const newUser = {
-          ...userData,
-          avatarUrl: `https://avatar.vercel.sh/${userData.email}.png`,
-        }
-        await addDoc(collection(db, 'users'), newUser);
-        toast({ title: "User Added", description: "New user record created in Firestore." });
+      if (userData.id) {
+        const userRef = doc(db, 'users', userData.id);
+        await setDoc(userRef, userData, { merge: true });
+        toast({ title: 'User Updated', description: 'The user details have been saved.' });
+      } else {
+        await addDoc(collection(db, 'users'), userData);
+        toast({ title: 'User Added', description: 'A new user has been created.' });
       }
-      setIsUserDialogOpen(false);
-      setEditingUser(null);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: "Could not save user." });
+    } catch (error) {
+      console.error('Error saving user: ', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not save user details.' });
     }
   };
-  
-  if (currentUser?.role !== 'management') {
-    return null;
+
+  if (isAuthLoading || currentUser?.role !== 'management') {
+    return (
+       <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-1/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardHeader>
+        <CardContent><div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <Card className="shadow-xl rounded-xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-headline text-primary">User Management</CardTitle>
-            <CardDescription>View, add, and edit user roles and details.</CardDescription>
-          </div>
-          <Button size="sm" onClick={handleAddUser}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add User
-          </Button>
-        </CardHeader>
-        <CardContent>
-           {isLoading ? (
-            <p className="text-center py-8">Loading users...</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>View, add, or edit user roles and information.</CardDescription>
+        </div>
+        <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add User</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add New User</DialogTitle></DialogHeader>
+            <UserForm onSave={handleSaveUser} closeDialog={() => setIsAddUserDialogOpen(false)} />
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {isDataLoading ? (
+              <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading users...</TableCell></TableRow>
+            ) : (
+              users.map((user) => (
+                 <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell><Badge variant={user.role === 'management' ? 'default' : 'secondary'}>{user.role}</Badge></TableCell>
+                  <TableCell className="text-right">
+                     <Dialog>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="icon"><Edit className="h-4 w-4" /></Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                           <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+                           <UserForm userData={user} onSave={handleSaveUser} closeDialog={() => {
+                              // This is a bit of a hack to close the dialog. A better solution
+                              // would be to manage the dialog state in a more granular way.
+                              const closeButton = document.querySelector('[data-radix-dialog-close]');
+                              if (closeButton instanceof HTMLElement) {
+                                closeButton.click();
+                              }
+                           }} />
+                        </DialogContent>
+                     </Dialog>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={user.avatarUrl} alt={user.name} />
-                          <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{user.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'management' ? 'default' : 'secondary'} className="capitalize">
-                        {user.role === 'management' ? <ShieldCheck className="mr-1 h-3 w-3" /> : <UserIcon className="mr-1 h-3 w-3" />}
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.department || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)} aria-label="Edit user">
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      {currentUser?.id !== user.id && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete user">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                               <AlertDialogTitle className="flex items-center gap-2">
-                                <AlertTriangle className="text-warning"/> Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete the user's data record from the application (profile, shifts, etc.). This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(user.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                                Delete User Record
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          {!isLoading && users.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">No users found.</p>
-          )}
-        </CardContent>
-      </Card>
-      
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent>
-             <DialogHeader>
-                <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-                <DialogDescription>
-                    {editingUser ? "Modify the user's details and role." : "Create a new user record in Firestore."}
-                </DialogDescription>
-            </DialogHeader>
-            <UserFormDialog 
-                userData={editingUser} 
-                onSave={handleSaveUser}
-            />
-        </DialogContent>
-      </Dialog>
-    </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
-=======
-export const dynamic = 'force-dynamic';
-
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
-// ... rest of the file
->>>>>>> cd9f8f19f7821f90b84de55171d082541fb5f421

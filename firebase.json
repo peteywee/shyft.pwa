@@ -11,6 +11,9 @@
       }
     ]
   },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "emulators": {
     "hosting": {
       "port": 4501

@@ -2,52 +2,62 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Shift } from '@/types';
-import { MOCK_STAFF_USER } from '@/lib/mock-user';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { calculatePayPeriods, type PayPeriod } from './_utils/pay-calculator';
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { calculatePayPeriods } from './_utils/pay-calculator';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function PayHistoryPage() {
-  const user = MOCK_STAFF_USER; 
-  const { toast } = useToast(); // Initialize useToast
+  const { user, isLoading: isAuthLoading } = useAuth(); 
+  const { toast } = useToast();
+  const router = useRouter();
   const [userShifts, setUserShifts] = useState<Shift[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.id) {
-      setIsLoading(false);
+    // If auth is done and there's no user, redirect them.
+    if (!isAuthLoading && !user) {
+      toast({ variant: 'destructive', title: 'Unauthorized', description: 'You must be logged in to view pay history.' });
+      router.replace('/login');
       return;
     }
 
-    const q = query(collection(db, 'shifts'), where('userId', '==', user.id));
+    // If we have a user, start fetching their shifts.
+    if (user?.id) {
+      const q = query(collection(db, 'shifts'), where('userId', '==', user.id));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const shiftsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Shift));
-      setUserShifts(shiftsData);
-      setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching user shifts for pay history:", error);
-        toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history shifts.' });
-        setIsLoading(false);
-    });
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const shiftsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Shift));
+        setUserShifts(shiftsData);
+        setIsDataLoading(false);
+      }, (error) => {
+          console.error("Error fetching user shifts for pay history:", error);
+          toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history shifts.' });
+          setIsDataLoading(false);
+      });
 
-    return () => unsubscribe();
-  }, [user?.id, toast]);
+      return () => unsubscribe();
+    } else if (!isAuthLoading) {
+        // Handle case where there's no user ID but auth isn't loading anymore
+        setIsDataLoading(false);
+    }
+  }, [user, isAuthLoading, toast, router]);
 
   const payPeriods = useMemo(() => {
     return calculatePayPeriods(userShifts);
   }, [userShifts]);
   
-  if (isLoading) {
+  if (isAuthLoading || isDataLoading) {
     return <PayHistorySkeleton />;
   }
 

@@ -3,13 +3,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/hooks/use-auth';
 import {
   collection,
   query,
   where,
   onSnapshot,
-  addDoc,
-  updateDoc,
   deleteDoc,
   doc,
   getDocs
@@ -25,7 +24,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { MOCK_MANAGER_USER } from '@/lib/mock-user';
 
 const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
   loading: () => <p>Loading form...</p>,
@@ -33,7 +31,7 @@ const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => m
 });
 
 export default function DashboardPage() {
-  const user = MOCK_MANAGER_USER; 
+  const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [shiftsForDay, setShiftsForDay] = useState<Shift[]>([]);
@@ -42,19 +40,16 @@ export default function DashboardPage() {
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
 
-  // State for AI integration
   const [aiQuery, setAiQuery] = useState('');
   const [aiResponse, setAiResponse] = useState('Ask me anything about shifts, e.g., "who works tomorrow?"');
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Memoize the scheduled modifiers for the calendar
   const scheduledCalendarModifiers = useMemo(() => {
     return {
       scheduled: shiftsForMonth.map(shift => parseISO(shift.date))
     };
   }, [shiftsForMonth]);
 
-  // Fetch staff users from Firestore (only once)
   useEffect(() => {
     const fetchStaff = async () => {
       try {
@@ -67,10 +62,11 @@ export default function DashboardPage() {
         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch staff users. Check your Firebase connection.' });
       }
     };
-    fetchStaff();
-  }, [toast]);
+    if (user?.role === 'management') {
+        fetchStaff();
+    }
+  }, [toast, user]);
 
-  // Subscribe to shifts for the selected DAY
   useEffect(() => {
     if (!selectedDate) return;
     
@@ -91,7 +87,6 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, [selectedDate, toast]);
   
-  // Subscribe to shifts for the selected MONTH (for calendar highlighting)
   useEffect(() => {
     if (!selectedDate) return;
     
@@ -118,48 +113,24 @@ export default function DashboardPage() {
   }, [selectedDate, toast]);
 
 
-  const handleAddShift = () => {
+  const handleAddShiftClick = () => {
     if (!selectedDate) return;
     setCurrentShift({ date: format(selectedDate, 'yyyy-MM-dd') });
     setIsShiftDialogOpen(true);
   };
 
-  const handleEditShift = (shift: Shift) => {
+  const handleEditShiftClick = (shift: Shift) => {
     setCurrentShift(shift);
     setIsShiftDialogOpen(true);
   };
 
   const handleDeleteShift = async (shiftId: string) => {
+    if (!window.confirm("Are you sure you want to delete this shift?")) return;
     try {
       await deleteDoc(doc(db, 'shifts', shiftId));
       toast({ title: 'Shift Deleted', description: 'The shift has been removed.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete shift.' });
-    }
-  };
-
-  const handleSaveShift = async (formData: Omit<Shift, 'id' | 'userName'> & { id?: string }) => {
-    const staffMember = staffUsers.find(u => u.id === formData.userId);
-    if (!staffMember) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Selected staff member not found.' });
-      return;
-    }
-
-    const shiftData = { ...formData, userName: staffMember.name };
-
-    try {
-      if (shiftData.id) { // Editing
-        const shiftDocRef = doc(db, 'shifts', shiftData.id);
-        await updateDoc(shiftDocRef, shiftData);
-        toast({ title: 'Shift Updated', description: 'The shift has been successfully updated.' });
-      } else { // Adding
-        await addDoc(collection(db, 'shifts'), shiftData);
-        toast({ title: 'Shift Added', description: 'The new shift has been added.' });
-      }
-      setIsShiftDialogOpen(false);
-      setCurrentShift(null);
-    } catch (error) {
-       toast({ variant: 'destructive', title: 'Error', description: 'Could not save shift.' });
     }
   };
 
@@ -169,25 +140,22 @@ export default function DashboardPage() {
     try {
       const response = await fetch('/api/genkit-query', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: aiQuery }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        setAiResponse(`Error: ${errorData.error || 'Unknown error'}`);
-        toast({ variant: 'destructive', title: 'AI Query Error', description: errorData.error || 'Failed to get AI response.' });
-        return;
+        throw new Error(errorData.error || 'Unknown error');
       }
 
       const data = await response.json();
       setAiResponse(data.text || 'No response.');
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error during AI query:', error);
-      setAiResponse(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      toast({ variant: 'destructive', title: 'AI Query Error', description: 'Failed to connect to AI service.' });
+      setAiResponse(`Error: ${message}`);
+      toast({ variant: 'destructive', title: 'AI Query Error', description: `Failed to get AI response: ${message}` });
     } finally {
       setIsAiLoading(false);
     }
@@ -197,7 +165,7 @@ export default function DashboardPage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8 font-headline text-primary">Staff Schedule</h1>
       
-      {/* AI Query Section */}
+      {user?.role === 'management' && (
       <Card className="shadow-lg rounded-xl mb-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5" /> AI Assistant</CardTitle>
@@ -210,33 +178,24 @@ export default function DashboardPage() {
               placeholder="e.g., Who is working on Monday?"
               value={aiQuery}
               onChange={(e) => setAiQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && aiQuery.trim() !== '' && !isAiLoading) {
-                  handleAiQuery();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && aiQuery.trim() !== '' && !isAiLoading) { handleAiQuery(); } }}
               disabled={isAiLoading}
             />
-            <Button onClick={handleAiQuery} disabled={aiQuery.trim() === '' || isAiLoading}>
-              Ask AI
-            </Button>
+            <Button onClick={handleAiQuery} disabled={aiQuery.trim() === '' || isAiLoading}>Ask AI</Button>
           </div>
           <div className="mt-4 p-3 border rounded-md bg-muted text-muted-foreground min-h-[60px] flex items-center justify-center">
-            {isAiLoading ? (
-              <span className="animate-pulse">Thinking...</span>
-            ) : (
-              aiResponse
-            )}
+            {isAiLoading ? <span className="animate-pulse">Thinking...</span> : aiResponse}
           </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <Card className="md:col-span-1 shadow-lg rounded-xl">
           <CardHeader>
             <CardTitle>Calendar</CardTitle>
-            <CardDescription>Select a date to view or add shifts.</CardDescription>
-          </CardHeader>
+            <CardDescription>Select a date to view shifts.</CardDescription>
+          </Header>
           <CardContent className="flex justify-center">
             <Calendar
               mode="single"
@@ -244,9 +203,7 @@ export default function DashboardPage() {
               onSelect={setSelectedDate}
               className="rounded-md border"
               modifiers={scheduledCalendarModifiers}
-              modifiersClassNames={{
-                scheduled: 'bg-accent/30 text-accent-foreground rounded-full',
-              }}
+              modifiersClassNames={{ scheduled: 'bg-accent/30 text-accent-foreground rounded-full' }}
             />
           </CardContent>
         </Card>
@@ -254,13 +211,11 @@ export default function DashboardPage() {
         <Card className="md:col-span-2 shadow-lg rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>
-                Shifts for {selectedDate ? format(selectedDate, 'PPP') : 'selected date'}
-              </CardTitle>
+              <CardTitle>Shifts for {selectedDate ? format(selectedDate, 'PPP') : 'selected date'}</CardTitle>
               <CardDescription>Manage staff assignments for this day.</CardDescription>
             </div>
              {user?.role === 'management' && selectedDate && (
-              <Button onClick={handleAddShift} size="sm">
+              <Button onClick={handleAddShiftClick} size="sm">
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Shift
               </Button>
             )}
@@ -273,18 +228,12 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-semibold text-lg text-primary">{shift.userName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {shift.startTime} - {shift.endTime} {shift.title ? `(${shift.title})` : ''}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{shift.startTime} - {shift.endTime} {shift.title ? `(${shift.title})` : ''}</p>
                       </div>
                       {user?.role === 'management' && (
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditShift(shift)} aria-label="Edit shift">
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteShift(shift.id)} className="text-destructive hover:text-destructive" aria-label="Delete shift">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEditShiftClick(shift)} aria-label="Edit shift"><Edit3 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteShift(shift.id)} className="text-destructive hover:text-destructive" aria-label="Delete shift"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       )}
                     </div>
@@ -292,32 +241,25 @@ export default function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
-                {selectedDate ? 'No shifts scheduled for this date.' : 'Please select a date to see shifts.'}
-              </p>
+              <p className="text-center text-muted-foreground py-8">{selectedDate ? 'No shifts scheduled for this date.' : 'Please select a date.'}</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-       {user?.role === 'management' && (
-        <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
+       <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{currentShift?.id ? 'Edit Shift' : 'Add New Shift'}</DialogTitle>
-              <DialogDescription>
-                 {currentShift?.id ? 'Modify the details for this shift.' : 'Assign a staff member to a shift for the selected date.'}
-              </DialogDescription>
+              <DialogDescription>{currentShift?.id ? 'Modify the details for this shift.' : 'Assign a staff member to a shift.'}</DialogDescription>
             </DialogHeader>
             <ShiftForm 
               initialData={currentShift} 
-              onSave={handleSaveShift} 
               staffUsers={staffUsers} 
               closeDialog={() => setIsShiftDialogOpen(false)}
             />
           </DialogContent>
         </Dialog>
-      )}
     </div>
   );
 }

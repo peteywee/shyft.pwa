@@ -1,7 +1,5 @@
 
 import type { NextConfig } from 'next';
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
-import { StaleWhileRevalidate } from 'workbox-strategies';
 
 const withPWA = require('next-pwa')({
   dest: 'public',
@@ -9,12 +7,6 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
-    // ====================================================================================
-    // Rule for Shifts API with Background Sync
-    // Strategy: NetworkOnly with BackgroundSyncPlugin
-    // - Tries network first.
-    // - If offline, the request is queued and retried when connection returns.
-    // ====================================================================================
     {
       urlPattern: ({ url }) => url.pathname.startsWith('/api/shifts'),
       handler: 'NetworkOnly',
@@ -26,7 +18,7 @@ const withPWA = require('next-pwa')({
           },
         },
       },
-      method: 'POST', // Only apply this to POST requests
+      method: 'POST',
     },
     {
       urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
@@ -89,12 +81,15 @@ const withPWA = require('next-pwa')({
   ],
 });
 
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: false, // Disabled for now
+})
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'
   }
 };
 
-export default withPWA(nextConfig);
+export default withPWA(withBundleAnalyzer(nextConfig));

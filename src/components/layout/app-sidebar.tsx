@@ -1,100 +1,99 @@
 
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link"
 import {
-  CalendarDays,
+  Bell,
+  Calendar,
+  CircleUser,
+  Home,
+  LineChart,
+  Menu,
+  Package,
+  Package2,
+  Search,
+  ShoppingCart,
   Users,
   CreditCard,
-  UserCircle,
   Settings,
-  LogOut,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Logo } from '@/components/logo';
-import { 
-  Sidebar, 
-  SidebarHeader, 
-  SidebarContent, 
-  SidebarFooter, 
-  SidebarMenu, 
-  SidebarMenuItem, 
-  SidebarMenuButton,
-  SidebarSeparator,
-  useSidebar
-} from '@/components/ui/sidebar';
-import type { User } from '@/types';
-import { MOCK_USER } from '@/lib/mock-user';
+} from "lucide-react"
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  roles?: ('management' | 'staff')[];
-}
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/use-auth"
+import Logo from "../logo"
 
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: CalendarDays },
-  { href: '/users', label: 'Users', icon: Users, roles: ['management'] },
-  { href: '/pay-history', label: 'Pay History', icon: CreditCard },
-  { href: '/profile', label: 'Profile', icon: UserCircle },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+const navItems = [
+    { href: "/dashboard", icon: Calendar, label: "Schedule" },
+    { href: "/users", icon: Users, label: "Users", role: 'management' },
+    { href: "/pay-history", icon: CreditCard, label: "Pay History" },
+    { href: "/profile", icon: CircleUser, label: "Profile" },
+    { href: "/settings", icon: Settings, label: "Settings" },
+]
 
 export function AppSidebar() {
-  const pathname = usePathname();
-  const user = MOCK_USER; 
-  const { state: sidebarState } = useSidebar();
-  const isCollapsed = sidebarState === 'collapsed';
+    return (
+        <div className="hidden border-r bg-card md:block">
+            <div className="flex h-full max-h-screen flex-col gap-2">
+                <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                    <Link href="/" className="flex items-center gap-2 font-semibold">
+                        <Logo />
+                        <span className="">Shyft</span>
+                    </Link>
+                </div>
+                <div className="flex-1">
+                   <AppSidebarNav />
+                </div>
+            </div>
+        </div>
+    )
+}
 
-  const userCanView = (item: NavItem) => {
-    if (!item.roles) return true;
-    if (!user) return false;
-    return item.roles.includes(user.role);
-  };
-  
-  const handleLogout = () => {
-    console.log("Logout clicked");
-    alert("Logout functionality is disabled in dev mode.");
-  }
+export function AppSidebarNav({ isMobile = false }) {
+    const pathname = usePathname();
+    const { user } = useAuth();
+    
+    const filteredNavItems = navItems.filter(item => {
+        if (item.role) {
+            return user?.role === item.role;
+        }
+        return true;
+    });
 
-  return (
-    <Sidebar collapsible="icon" side="left" variant="sidebar">
-      <SidebarHeader className={cn("p-4", isCollapsed ? 'justify-center' : '')}>
-        <Logo collapsed={isCollapsed}/>
-      </SidebarHeader>
-      <SidebarSeparator />
-      <SidebarContent className="flex-grow">
-        <SidebarMenu className="p-2 space-y-1">
-          {navItems.filter(userCanView).map((item) => (
-            <SidebarMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior passHref>
-                <SidebarMenuButton
-                  isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-                  tooltip={isCollapsed ? item.label : undefined}
-                  className="w-full justify-start"
-                  aria-current={pathname === item.href ? 'page' : undefined}
+    return (
+        <nav className={cn("grid items-start px-2 text-sm font-medium lg:px-4", isMobile && "mt-8")}>
+            {filteredNavItems.map(({ href, icon: Icon, label }) => (
+                <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                        pathname === href && "bg-muted text-primary"
+                    )}
                 >
-                  <item.icon className={cn("h-5 w-5", isCollapsed ? 'mx-auto' : 'mr-3')} />
-                  <span className={cn(isCollapsed ? 'sr-only' : '')}>{item.label}</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarSeparator />
-      <SidebarFooter className="p-2">
-        <SidebarMenuButton 
-          onClick={handleLogout} 
-          tooltip={isCollapsed ? "Log out" : undefined}
-          className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive"
-        >
-          <LogOut className={cn("h-5 w-5", isCollapsed ? 'mx-auto' : 'mr-3')} />
-          <span className={cn(isCollapsed ? 'sr-only' : '')}>Log out</span>
-        </SidebarMenuButton>
-      </SidebarFooter>
-    </Sidebar>
-  );
+                    <Icon className="h-4 w-4" />
+                    {label}
+                </Link>
+            ))}
+        </nav>
+    )
 }

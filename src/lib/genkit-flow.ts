@@ -2,7 +2,7 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
-import { defineFlow, startFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import { z } from 'zod';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebase-admin';
@@ -58,11 +58,11 @@ export const menuSuggestionFlow = defineFlow(
         If you cannot answer the question from the data, say "I'm sorry, I don't have enough information to answer that."
     `;
     
-    const llmResponse = await startFlow('generate', {
+    const llmResponse = await run('generate', async () => ({
         prompt,
         model: 'gemini-1.5-flash',
         config: { temperature: 0.1 },
-    });
+    }));
     
     return llmResponse.output() as string;
   }

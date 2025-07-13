@@ -1,15 +1,16 @@
-export const dynamic = 'force-dynamic';
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, UserCircle, Mail, Phone, Briefcase as BriefcaseIcon, ShieldCheck } from 'lucide-react';
+import { Edit3, Mail, Phone, Briefcase as BriefcaseIcon, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
 import {
@@ -23,11 +24,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MOCK_USER } from '@/lib/mock-user';
-
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(MOCK_USER);
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -35,7 +34,9 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    setEditableUser(user);
+    if (user) {
+      setEditableUser(user);
+    }
   }, [user]);
 
   const getInitials = (name?: string) => {
@@ -49,19 +50,22 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    if (editableUser) {
+    if (editableUser && user) {
       setIsSaving(true);
-      // In a real app, you'd save this to a backend.
-      // For now, we just update the local state.
-      console.log("Saving user (mock):", editableUser);
-      setUser(editableUser);
-      toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-      setIsEditing(false);
-      setIsSaving(false);
+      try {
+        const userRef = doc(db, 'users', user.id);
+        await setDoc(userRef, editableUser, { merge: true });
+        toast({ title: "Profile Updated", description: "Your profile information has been saved." });
+        setIsEditing(false);
+      } catch (error) {
+        toast({ variant: 'destructive', title: "Error", description: "Could not save profile." });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
-  if (!user) {
+  if (isLoading || !user) {
     return <ProfileSkeleton />;
   }
 
@@ -151,7 +155,6 @@ interface InfoItemProps {
   value: string;
   className?: string;
 }
-
 
 function InfoItem({ icon: Icon, label, value, className }: InfoItemProps) {
   return (

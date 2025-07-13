@@ -1,8 +1,4 @@
-
 'use client';
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,76 +7,51 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle, Settings as SettingsIcon, PanelLeftOpen } from 'lucide-react';
-import Link from 'next/link';
-import { ThemeToggleButton } from '@/components/ui/theme-toggle-button';
-import { useSidebar } from '@/components/ui/sidebar'; 
-import { Logo } from '@/components/logo';
-import { MOCK_USER } from '@/lib/mock-user';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { CircleUser, Menu } from 'lucide-react';
+import { AppSidebarNav } from './app-sidebar';
+import { useAuth } from '@/hooks/use-auth';
+import { ThemeToggleButton } from '../ui/theme-toggle-button';
+import { PWAInstallButton } from '../pwa-install-button';
 
-export function AppHeader() {
-  const user = MOCK_USER;
-  const { toggleSidebar, isMobile } = useSidebar(); 
-
-  const getInitials = (name?: string) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-  
-  const handleLogout = () => {
-    console.log("Logout clicked");
-    alert("Logout functionality is disabled in dev mode.");
-  }
+export default function AppHeader() {
+  const { user, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-md md:px-6">
-      <div className="flex items-center gap-4">
-        {isMobile && (
-           <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle sidebar">
-             <PanelLeftOpen className="h-6 w-6" />
-           </Button>
-        )}
-        {!isMobile && <Logo collapsed={true} />} 
+    <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle navigation menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="flex flex-col">
+          <AppSidebarNav isMobile={true} />
+        </SheetContent>
+      </Sheet>
+      <div className="w-full flex-1">
+        {/* Can add a search bar here later */}
       </div>
-      <div className="flex items-center gap-4">
-        <ThemeToggleButton />
-        {user && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-10 w-10 border border-primary/50">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="profile avatar" />
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel>
-                <div className="font-medium">{user.name}</div>
-                <div className="text-xs text-muted-foreground">{user.email}</div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile" className="flex items-center" legacyBehavior>
-                  <UserCircle className="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center" legacyBehavior>
-                  <SettingsIcon className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      <PWAInstallButton />
+      <ThemeToggleButton />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="icon" className="rounded-full">
+            <CircleUser className="h-5 w-5" />
+            <span className="sr-only">Toggle user menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>{user?.name || 'My Account'}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>Settings</DropdownMenuItem>
+          <DropdownMenuItem>Support</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }

@@ -4,46 +4,33 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-      - name: Debug Environment Variables
-        run: |
-          if [ -z "${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" ]; then echo "API Key is MISSING"; else echo "API Key exists"; fi
-          if [ -z "${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" ]; then echo "Auth Domain is MISSING"; else echo "Auth Domain exists"; fi
-          if [ -z "${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" ]; then echo "Project ID is MISSING"; else echo "Project ID exists"; fi
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+        run: pnpm run build
 
-      - name: Export Static Site
-        run: npm run export
-
-      - name: Deploy
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHYFT_WEB }}'
-          channelId: live
-          projectId: shyft-web
+      # Add deployment steps here if required, e.g.:
+      # - name: Deploy
+      #   run: pnpm run deploy

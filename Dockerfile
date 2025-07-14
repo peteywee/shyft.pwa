@@ -1,26 +1,31 @@
-# Stage 1: Base image with Node.js
-FROM node:18-alpine AS base
-
-# Set working directory
+# ─────────────── Stage 1: deps ───────────────
+FROM node:20-bookworm AS deps
 WORKDIR /app
 
-# Copy package.json and package-lock.json (or yarn.lock)
-COPY package*.json ./
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
-# Install dependencies
-# Using --frozen-lockfile is recommended for reproducible builds if package-lock.json exists
-# For alpine, some packages might need build tools, consider `apk add --no-cache python3 make g++` if issues arise
-RUN npm install
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the application code
-# This copy will be largely overridden by volume mounts in docker-compose for development,
-# but it's useful for building standalone images or for caching layers.
+# ─────────────── Stage 2: build ───────────────
+FROM node:20-bookworm AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Expose the port Next.js runs on (default for `next dev` is 3000)
-EXPOSE 3000
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm run build  # needs "output: 'standalone'" in next.config.js
 
-# Default command to run the development server.
-# This will be overridden by docker-compose.yml for development scenarios.
-# For production, this would typically be `npm run start` after an `npm run build`.
-CMD ["npm", "run", "dev"]
+# ─────────────── Stage 3: runtime ───────────────
+FROM node:20-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+CMD ["node", "server.js"]

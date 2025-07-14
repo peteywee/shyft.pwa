@@ -53,7 +53,10 @@ export function AppSidebar() {
         <div className="hidden border-r bg-card md:block">
             <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                    <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+                    <Link
+                        href="/dashboard"
+                        className="flex items-center gap-2 font-semibold"
+                        legacyBehavior>
                         <Logo />
                         <span className="">Shyft</span>
                     </Link>
@@ -63,7 +66,7 @@ export function AppSidebar() {
                 </div>
             </div>
         </div>
-    )
+    );
 }
 
 export function AppSidebarNav({ isMobile = false }) {
@@ -87,11 +90,11 @@ export function AppSidebarNav({ isMobile = false }) {
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
                         pathname === href && "bg-muted text-primary"
                     )}
-                >
+                    legacyBehavior>
                     <Icon className="h-4 w-4" />
                     {label}
                 </Link>
             ))}
         </nav>
-    )
+    );
 }

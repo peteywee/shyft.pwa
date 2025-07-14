@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import type { ThemeProviderProps } from 'next-themes/dist/types';
+import { type ThemeProviderProps } from 'next-themes';
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const [mounted, setMounted] = React.useState(false);
@@ -12,8 +12,9 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   }, []);
 
   if (!mounted) {
-    // Return null or a loader to avoid hydration mismatch
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
+    // To prevent hydration mismatch, we'll render nothing on the server.
+    // The real content will appear once the component is mounted on the client.
+    return null;
   }
   
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>;

@@ -1,44 +1,59 @@
+# Node
 
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+node\_modules/
+.pnpm-store/
+.pnpm-debug.log
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
+# Next.js build output
 
-# testing
-/coverage
+.next/
+out/
+dist/
 
-# next.js
-/.next/
-/out/
+# Logs
 
-# production
-/build
+npm-debug.log\*
+yarn-debug.log\*
+yarn-error.log\*
+pnpm-debug.log\*
 
-# misc
-.DS_Store
-*.pem
+# OS junk
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.DS\_Store
+Thumbs.db
 
-# local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env
+# IDE / Editor
 
-# vercel
-.vercel
+.vscode/
+.idea/
+\*.sublime-workspace
+\*.sublime-project
 
-# PWA files
-public/sw.js
-public/workbox-*.js
-public/worker-*.js
-public/sw.js.map
-public/workbox-*.js.map
-public/worker-*.js.map
+# TypeScript build
+
+\*.tsbuildinfo
+
+# Env files (if any)
+
+.env\* !.env.example .env.local
+
+# Runtime data
+
+coverage/
+\*.local
+
+# Misc
+
+\*.log
+\*.swp
+
+# Mac system files
+
+Icon?
+ehthumbs.db
+Desktop.ini
+
+# Optional: VSCode launch config if personal
+
+.vscode/launch.json
+

@@ -1,0 +1,56 @@
+{
+  // Name for the dev container, which will be displayed in the UI.
+  "name": "Shyft Dev Container (Node.js & TypeScript)",
+
+  // Use a pre-built image with Node.js, TypeScript, and pnpm already installed.
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bullseye",
+
+  // Define the hardware requirements for the environment.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+
+  // Features to add to the dev container.
+  "features": {
+    // Add the Google Cloud CLI (gcloud) to the container.
+    "ghcr.io/devcontainers/features/google-cloud-cli:1": {},
+    // Add Python, which is required for the Qodana CLI installer.
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    }
+  },
+
+  // Commands to run after the container is created.
+  "postCreateCommand": "bash -c 'pnpm install && pip install qodana-cli'",
+
+  // Ports to forward from the container to the local machine.
+  "forwardPorts": [3000],
+
+  // Customize the VS Code experience inside the container.
+  "customizations": {
+    "vscode": {
+      // List of extensions to install automatically.
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-typescript-next",
+        "GitHub.copilot",
+        "ms-azuretools.vscode-docker"
+      ],
+      // Default settings for the workspace.
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "editor.formatOnSave": true,
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  }
+}

@@ -18,11 +18,17 @@ import type { Shift, User } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Edit3, Trash2 } from 'lucide-react';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 const ShiftForm = dynamic(() => import('./_components/shift-form').then(mod => mod.ShiftForm), {
   loading: () => <p>Loading form...</p>,
@@ -183,6 +189,51 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Shifts per Day</CardTitle>
+          <CardDescription>Number of shifts scheduled for each day of the current month.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{
+            desktop: {
+              label: "Shifts",
+              color: "hsl(var(--chart-1))",
+            },
+          }} className="min-h-[200px]">
+            <BarChart
+              accessibilityLayer
+              data={shiftsForMonth.reduce((acc, shift) => {
+                const date = format(parseISO(shift.date), 'yyyy-MM-dd');
+                const existing = acc.find((d) => d.date === date);
+                if (existing) {
+                  existing.shifts++;
+                } else {
+                  acc.push({ date, shifts: 1 });
+                }
+                return acc;
+              }, [] as { date: string; shifts: number }[])}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value) => new Date(value).toLocaleDateString("en-US", { day: "numeric" })}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <Bar dataKey="shifts" fill="var(--color-desktop)" radius={4} />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
        <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">

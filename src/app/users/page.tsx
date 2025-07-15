@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -57,7 +57,7 @@ export default function UsersPage() {
   
   const handleSaveUser = async (userData: Partial<User>) => {
     try {
-      const idToken = await currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) {
         throw new Error("Authentication token not available.");
       }

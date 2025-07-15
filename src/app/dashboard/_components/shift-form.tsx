@@ -6,6 +6,7 @@ import type { Shift, User } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -61,7 +62,7 @@ export function ShiftForm({ initialData, staffUsers, closeDialog }: ShiftFormPro
       setIsSaving(true);
       
       try {
-        const idToken = await user?.getIdToken();
+        const idToken = await auth.currentUser?.getIdToken();
         if (!idToken) {
           throw new Error("Authentication token not available.");
         }

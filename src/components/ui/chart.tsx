@@ -16,7 +16,7 @@ export const ChartContainer = ({
   config?: unknown;
 }) => <div className={className}>{children}</div>;
 
-export const ChartTooltip        = () => null;
-export const ChartTooltipContent = () => null;
+export const ChartTooltip = (_props: any) => null;
+export const ChartTooltipContent = (_props: any) => null;
 
 export default ChartContainer;

@@ -36,6 +36,8 @@ Thumbs.db
 # Env files (if any)
 
 .env\* !.env.example .env.local
+.env
+.env.*.local
 
 # Runtime data
 

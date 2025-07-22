@@ -212,3 +212,18 @@
     @apply font-headline;
   }
 }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%; /* For light mode */
+  --foreground: 222.2 84% 4.9%;
+  /* ... other variables */
+}
+
+.dark {
+  --background: 222.2 84% 4.9%; /* For dark mode */
+  --foreground: 210 40% 98%;
+  /* ... other variables */
+}

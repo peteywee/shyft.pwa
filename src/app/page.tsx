@@ -1,21 +1,18 @@
-'use client';
+// src/app/example/page.tsx
+'use client'                           // needed because the button handles onClick
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { PrimaryButton } from '@/components/ui/primary-button'
 
-export default function HomePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace('/dashboard');
-  }, [router]);
-
+export default function ExamplePage() {
   return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
-        <p className="text-muted-foreground">Redirecting to dashboard...</p>
-      </div>
-    </div>
-  );
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-muted">
+      <h1 className="text-2xl font-semibold text-foreground">
+        Primary Button Demo
+      </h1>
+
+      <PrimaryButton onClick={() => console.log('clicked')}>
+        Save changes
+      </PrimaryButton>
+    </main>
+  )
 }

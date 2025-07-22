@@ -1,43 +1,14 @@
 
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
-import { Shift } from '@/types';
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/firebase-admin'
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const shiftData: Omit<Shift, 'id'> = await request.json();
-    
-    // Firestore expects string values for startTime and endTime
-    const updatedShift = {
-      ...shiftData,
-    };
-
-    await db.collection('shifts').doc(params.id).update(updatedShift);
-    return NextResponse.json({ id: params.id, ...shiftData });
-  } catch (error) {
-    console.error('Error updating shift:', error);
-    return NextResponse.json(
-      { message: 'Error updating shift' },
-      { status: 500 }
-    );
-  }
+export async function PUT( req: Request, { params }: { params: { id:string } } ) {
+  const body = await req.json()
+  await db.collection('shifts').doc(params.id).set(body, { merge: true })
+  return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await db.collection('shifts').doc(params.id).delete();
-    return NextResponse.json({ message: 'Shift deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting shift:', error);
-    return NextResponse.json(
-      { message: 'Error deleting shift' },
-      { status: 500 }
-    );
-  }
+export async function DELETE( _req: Request, { params }: { params: { id: string } } ) {
+  await db.collection('shifts').doc(params.id).delete()
+  return NextResponse.json({ ok: true })
 }

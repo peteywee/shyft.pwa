@@ -3,6 +3,109 @@
 @tailwind utilities;
 
 @layer base {
+  @property --background {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 14% 95%);
+  }
+  @property --foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(210 20% 15%);
+  }
+  @property --card {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 14% 95%);
+  }
+  @property --card-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(210 20% 15%);
+  }
+  @property --popover {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 14% 95%);
+  }
+  @property --popover-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(210 20% 15%);
+  }
+  @property --primary {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(167 25% 61%);
+  }
+  @property --primary-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(167 25% 10%);
+  }
+  @property --secondary {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 10% 88%);
+  }
+  @property --secondary-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(210 20% 15%);
+  }
+  @property --muted {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 10% 80%);
+  }
+  @property --muted-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(210 15% 40%);
+  }
+  @property --accent {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(44 59% 71%);
+  }
+  @property --accent-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(44 50% 20%);
+  }
+  @property --destructive {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(0 84.2% 60.2%);
+  }
+  @property --destructive-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(0 0% 98%);
+  }
+  @property --border {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 10% 80%);
+  }
+  @property --input {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(173 10% 85%);
+  }
+  @property --ring {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: hsl(167 25% 61%);
+  }
+  @property --radius {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 0.5rem;
+  }
+}
+
+@layer base {
   :root {
     --background: 173 14% 95%; /* Light gray */
     --foreground: 210 20% 15%; /* Dark gray/blue for text */

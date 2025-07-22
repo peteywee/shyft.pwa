@@ -1,11 +1,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   OAuthProvider,
 } from 'firebase/auth';
@@ -26,23 +27,22 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 
-/* ---------- OAuth providers ---------- */
+// --- OAuth providers ---
 const googleProvider = new GoogleAuthProvider();
-
 const appleProvider = new OAuthProvider('apple.com');
 appleProvider.addScope('email');
 appleProvider.addScope('name');
 
-/* ---------- Helper ---------- */
+// --- Helper ---
 function niceError(err: unknown): string {
   if (err instanceof FirebaseError) {
     switch (err.code) {
       case 'auth/invalid-credential':
       case 'auth/wrong-password':
       case 'auth/user-not-found':
-        return 'Incorrect e‑mail or password.';
+        return 'Incorrect e-mail or password.';
       case 'auth/popup-closed-by-user':
-        return 'Popup closed before completing sign‑in.';
+        return 'Popup closed before completing sign-in.';
       default:
         return err.message;
     }
@@ -58,7 +58,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  /* ----- e‑mail / password ----- */
+  // --- Handle redirect result ---
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          toast({
+            title: 'Login successful',
+            description: "You're now logged in.",
+          });
+          router.replace('/dashboard');
+        }
+      })
+      .catch((error) => {
+        toast({
+          variant: 'destructive',
+          title: 'Login failed',
+          description: niceError(error),
+        });
+      })
+      .finally(() => setIsLoading(false));
+  }, [router, toast]);
+  
+
+  // --- e-mail / password ---
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -77,29 +100,11 @@ export default function LoginPage() {
     }
   };
 
-  /* ----- social login (Google or Apple) ----- */
+  // --- social login (Google or Apple) ---
   const handleSocial = async (providerName: 'google' | 'apple') => {
     setIsLoading(true);
     const provider = providerName === 'google' ? googleProvider : appleProvider;
-
-    try {
-      await signInWithPopup(auth, provider);
-      toast({
-        title: 'Login successful',
-        description: `Signed in with ${
-          providerName.charAt(0).toUpperCase() + providerName.slice(1)
-        }.`,
-      });
-      router.replace('/dashboard');
-    } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Login failed',
-        description: niceError(err),
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await signInWithRedirect(auth, provider);
   };
 
   return (
@@ -108,11 +113,11 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
-            Enter your e‑mail below to sign in—or use a social account.
+            Enter your e-mail below to sign in—or use a social account.
           </CardDescription>
         </CardHeader>
 
-        {/* -------- e‑mail / password form -------- */}
+        {/* -------- e-mail / password form -------- */}
         <form onSubmit={handleLogin}>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
@@ -143,7 +148,7 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign in
+              Sign in
             </Button>
 
             {/* -------- social buttons -------- */}
@@ -170,7 +175,7 @@ export default function LoginPage() {
             <div className="mt-2 text-center text-sm">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="underline">
-                <span>Sign up</span>
+                <span>Sign up</span>
               </Link>
             </div>
           </CardFooter>

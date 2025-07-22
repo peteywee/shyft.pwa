@@ -1,31 +1,38 @@
-# ─────────────── Stage 1: deps ───────────────
-FROM node:20-bookworm AS deps
+# 1. Base Stage: Install dependencies
+FROM node:20-alpine AS base
 WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-
 COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
-# ─────────────── Stage 2: build ───────────────
-FROM node:20-bookworm AS builder
+# 2. Build Stage: Build the Next.js application
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=base /app/node_modules ./node_modules
 COPY . .
+RUN npm install -g pnpm
+RUN pnpm run build
 
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm run build  # needs "output: 'standalone'" in next.config.js
-
-# ─────────────── Stage 3: runtime ───────────────
-FROM node:20-bookworm-slim AS runner
+# 3. Production Stage: Create the final, small image
+FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Set environment variables for production
+ENV NODE_ENV=production
+
+# Create a non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy only the necessary files for production
 COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+USER nextjs
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+
+# Start the Next.js server
+CMD ["npm", "start"]

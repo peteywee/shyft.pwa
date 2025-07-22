@@ -1,61 +1,72 @@
-# Node
-
-node\_modules/
+# =============================================================================
+# | Node / PNPM
+# =============================================================================
+# Dependencies
+node_modules/
 .pnpm-store/
-.pnpm-debug.log
 
-# Next.js build output
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
+# =============================================================================
+# | Next.js
+# =============================================================================
+# Build output
 .next/
 out/
 dist/
 
-# Logs
+# Auto-generated type definitions
+next-env.d.ts
 
-npm-debug.log\*
-yarn-debug.log\*
-yarn-error.log\*
-pnpm-debug.log\*
-
-# OS junk
-
-.DS\_Store
-Thumbs.db
-
-# IDE / Editor
-
-.vscode/
-.idea/
-\*.sublime-workspace
-\*.sublime-project
-
-# TypeScript build
-
-\*.tsbuildinfo
-
-# Env files (if any)
-
-.env\* !.env.example .env.local
-.env
+# =============================================================================
+# | Environment Variables
+# =============================================================================
+# Ignore all local environment files
+.env.local
 .env.*.local
+.env
 
-# Runtime data
+# =============================================================================
+# | Editor / IDE
+# =============================================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.sublime-project
 
-coverage/
-\*.local
+# =============================================================================
+# | OS / System
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
 
-# Misc
-
-\*.log
-\*.swp
-
-# Mac system files
-
-Icon?
+# Windows
+Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Optional: VSCode launch config if personal
+# =============================================================================
+# | Miscellaneous
+# =============================================================================
+# TypeScript cache file
+*.tsbuildinfo
 
-.vscode/launch.json
+# Temporary files
+*.swp
+*.swo
 
+# Test coverage
+coverage/

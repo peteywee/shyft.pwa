@@ -8,29 +8,26 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8 # Specify pnpm version
+
+      - name: Setup Node.js and cache pnpm dependencies
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Install Firebase CLI
-        run: pnpm install -g firebase-tools
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: Install Project Dependencies
         run: pnpm install
 
-      - name: Build TypeScript
+      - name: Build TypeScript (if necessary)
         run: pnpm run build
 
-      - name: Deploy to Firebase
-        uses: w9jds/firebase-action@master
-        with:
-          args: deploy --only functions
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      - name: Deploy to Firebase Functions
+        run: pnpm exec firebase deploy --only functions --token "${{ secrets.FIREBASE_TOKEN }}" --project "${{ secrets.PROJECT_ID }}"

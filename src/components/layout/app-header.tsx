@@ -1,57 +1,40 @@
-'use client';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { CircleUser, Menu } from 'lucide-react';
-import { AppSidebarNav } from './app-sidebar';
-import { useAuth } from '@/hooks/use-auth';
-import { ThemeToggleButton } from '../ui/theme-toggle-button';
-import { PWAInstallButton } from '../pwa-install-button';
 
-export default function AppHeader() {
-  const { user, logout } = useAuth();
+'use client';
+
+import { useAuth } from '@/hooks/use-auth';
+import { Logo } from '@/components/logo';
+import { Button } from '@/components/ui/button';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+
+export function AppHeader() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    toast({ title: 'Signed Out', description: "You have been successfully signed out." });
+    router.push('/login');
+  };
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Toggle navigation menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="flex flex-col">
-          <AppSidebarNav isMobile={true} />
-        </SheetContent>
-      </Sheet>
-      <div className="w-full flex-1">
-        {/* Can add a search bar here later */}
+    <header className="sticky top-0 z-40 w-full border-b bg-background">
+      <div className="container flex h-16 items-center space-x-4 sm:justify-between sm:space-x-0">
+        <div className="flex gap-6 md:gap-10">
+          <Logo />
+        </div>
+        {user && (
+          <div className="flex flex-1 items-center justify-end space-x-4">
+            <nav className="flex items-center space-x-1">
+              <span className="text-sm text-muted-foreground hidden sm:inline-block">Welcome, {user.name}</span>
+              <Button variant="ghost" onClick={handleSignOut}>Sign Out</Button>
+            </nav>
+          </div>
+        )}
       </div>
-      <PWAInstallButton />
-      <ThemeToggleButton />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="icon" className="rounded-full">
-            <CircleUser className="h-5 w-5" />
-            <span className="sr-only">Toggle user menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user?.name || 'My Account'}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </header>
   );
 }

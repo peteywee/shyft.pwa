@@ -6,7 +6,7 @@ export function Logo({ collapsed }: { collapsed?: boolean }) {
     <Link
       href="/dashboard"
       className="text-primary hover:text-primary/90 transition-colors duration-200"
-      legacyBehavior>
+    >
       <div className="flex items-center gap-2">
         <Briefcase className={`h-8 w-8 ${collapsed ? 'mx-auto' : ''}`} strokeWidth={1.5} />
         {!collapsed && <span className="text-2xl font-bold font-headline">ShYft</span>}

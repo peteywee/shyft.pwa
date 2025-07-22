@@ -1,4 +1,11 @@
 
+'use client';
+
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import type { User } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -7,91 +14,87 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { User } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const userSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  role: z.enum(['staff', 'management']),
+});
 
 interface UserFormDialogProps {
-  user?: User;
-  onSave: (user: User) => void;
-  children: React.ReactNode;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  user?: Partial<User>;
+  onSave: (user: Partial<User>) => void;
 }
 
 export function UserFormDialog({
+  isOpen,
+  onOpenChange,
   user,
   onSave,
-  children,
 }: UserFormDialogProps) {
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const newUser = Object.fromEntries(formData.entries()) as unknown as User;
-    
-    // Here you would typically handle form validation
-    
-    await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newUser),
-    });
-
-    onSave(newUser);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<z.infer<typeof userSchema>>({
+    resolver: zodResolver(userSchema),
+    defaultValues: user,
+  });
+  
+  useEffect(() => {
+    reset(user);
+  }, [user, reset]);
+  
+  const onSubmit = (data: z.infer<typeof userSchema>) => {
+    onSave({ ...user, ...data });
   };
-
+  
   return (
-    <Dialog>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{user ? 'Edit User' : 'Add User'}</DialogTitle>
+          <DialogTitle>{user?.id ? 'Edit User' : 'Add User'}</DialogTitle>
           <DialogDescription>
-            {user
-              ? "Make changes to the user's profile here. Click save when you're done."
-              : "Add a new user to the system. Click save when you're done."}
+            {user?.id ? "Make changes to the user's profile." : "Add a new user to the system."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                defaultValue={user?.name || ''}
-                className="col-span-3"
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" {...register('name')} />
+              {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                defaultValue={user?.email || ''}
-                className="col-span-3"
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" {...register('email')} />
+              {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <Input
-                id="role"
-                name="role"
-                defaultValue={user?.role || ''}
-                className="col-span-3"
-              />
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role</Label>
+              <select {...register('role')} className="w-full p-2 border rounded-md">
+                  <option value="staff">Staff</option>
+                  <option value="management">Management</option>
+              </select>
+              {errors.role && <p className="text-red-500 text-sm">{errors.role.message}</p>}
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Save changes</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit">Save</Button>
           </DialogFooter>
         </form>
       </DialogContent>

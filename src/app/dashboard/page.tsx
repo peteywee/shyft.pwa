@@ -25,6 +25,16 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -44,6 +54,8 @@ export default function DashboardPage() {
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState<Partial<Shift> | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
 
   const scheduledCalendarModifiers = useMemo(() => {
     return {
@@ -119,13 +131,21 @@ export default function DashboardPage() {
     setIsShiftDialogOpen(true);
   };
 
-  const handleDeleteShift = async (shiftId: string) => {
-    if (!window.confirm("Are you sure you want to delete this shift?")) return;
+  const openDeleteConfirm = (shiftId: string) => {
+    setShiftToDelete(shiftId);
+    setIsAlertOpen(true);
+  };
+
+  const handleDeleteShift = async () => {
+    if (!shiftToDelete) return;
     try {
-      await deleteDoc(doc(db, 'shifts', shiftId));
+      await deleteDoc(doc(db, 'shifts', shiftToDelete));
       toast({ title: 'Shift Deleted', description: 'The shift has been removed.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete shift.' });
+    } finally {
+      setIsAlertOpen(false);
+      setShiftToDelete(null);
     }
   };
 
@@ -176,7 +196,7 @@ export default function DashboardPage() {
                       {user?.role === 'management' && (
                         <div className="flex space-x-2">
                           <Button variant="ghost" size="icon" onClick={() => handleEditShiftClick(shift)} aria-label="Edit shift"><Edit3 className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteShift(shift.id)} className="text-destructive hover:text-destructive" aria-label="Delete shift"><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openDeleteConfirm(shift.id)} className="text-destructive hover:text-destructive" aria-label="Delete shift"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       )}
                     </div>
@@ -248,6 +268,21 @@ export default function DashboardPage() {
             />
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the shift.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteShift}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

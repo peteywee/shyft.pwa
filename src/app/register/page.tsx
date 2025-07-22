@@ -1,9 +1,11 @@
+
 'use client';
 
-import React, { useState, FormEvent, useEffect } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,114 +18,122 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Icons } from '@/components/icons';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import Link from 'next/link';
 
 export default function RegisterPage() {
-  const { register, signInWithGoogle, signInWithGitHub, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('staff');
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/dashboard');
-    }
-  }, [isAuthenticated, router]);
-  
-  const handleAuthAction = async (action: () => Promise<boolean>, successMessage: string, errorMessage: string) => {
-    const success = await action();
-    if (success) {
-      toast({ title: 'Success', description: successMessage });
-      router.push('/dashboard');
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: errorMessage });
-    }
-  };
-
-  const handleRegister = (e: FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Please fill out all fields.' });
-      return;
-    }
-    handleAuthAction(
-      () => register(name, email, password),
-      'Your account has been created.',
-      'Registration failed. This email may already be in use.'
-    );
-  };
+    setIsLoading(true);
 
-  const handleSocialLogin = (provider: 'google' | 'github') => {
-    const action = provider === 'google' ? signInWithGoogle : signInWithGitHub;
-    handleAuthAction(
-      action,
-      `Successfully signed in with ${provider}.`,
-      `Failed to sign in with ${provider}.`
-    );
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Create user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        name,
+        email,
+        role,
+        payRate: role === 'management' ? 0 : 15, // Example pay rate
+      });
+
+      toast({ title: 'Registration Successful', description: "You've created an account." });
+      router.push('/dashboard');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Registration Failed',
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-background px-4">
+    <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Sign Up</CardTitle>
           <CardDescription>
-            Create your account to get started.
+            Enter your information to create an account
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => handleSocialLogin('google')} disabled={isLoading}>
-              <Icons.google className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-            <Button variant="outline" onClick={() => handleSocialLogin('github')} disabled={isLoading}>
-              <Icons.gitHub className="mr-2 h-4 w-4" />
-              GitHub
-            </Button>
-          </div>
-
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with email
-              </span>
-            </div>
-          </div>
-          
-          <form onSubmit={handleRegister} className="grid gap-4">
-             <div className="grid gap-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="Jane Doe" required value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
+        <form onSubmit={handleRegister}>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                placeholder="John Doe"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
-             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </Button>
-          </form>
-
-        </CardContent>
-        <CardFooter>
-          <div className="text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/login" className="font-semibold underline">
-              Sign in
-            </Link>
-          </div>
-        </CardFooter>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="management">Management</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <div className="w-full">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating Account...' : 'Create an account'}
+              </Button>
+              <div className="mt-4 text-center text-sm">
+                Already have an account?{' '}
+                <Link href="/login" className="underline">
+                  Sign in
+                </Link>
+              </div>
+            </div>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

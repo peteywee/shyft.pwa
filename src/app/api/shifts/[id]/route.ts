@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
 import { Shift } from '@/types';
 
 export async function PUT(
@@ -11,11 +10,9 @@ export async function PUT(
   try {
     const shiftData: Omit<Shift, 'id'> = await request.json();
     
-    // Convert string dates to Firestore Timestamps
+    // Firestore expects string values for startTime and endTime
     const updatedShift = {
       ...shiftData,
-      startTime: Timestamp.fromDate(new Date(shiftData.startTime)),
-      endTime: Timestamp.fromDate(new Date(shiftData.endTime)),
     };
 
     await db.collection('shifts').doc(params.id).update(updatedShift);

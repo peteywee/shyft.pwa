@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import type { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PlusCircle } from 'lucide-react';
 import {
   Table,
@@ -35,6 +36,8 @@ import {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -59,6 +62,15 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    const lowercasedFilter = searchTerm.toLowerCase();
+    const filteredData = users.filter(user =>
+      user.name.toLowerCase().includes(lowercasedFilter) ||
+      user.email.toLowerCase().includes(lowercasedFilter)
+    );
+    setFilteredUsers(filteredData);
+  }, [searchTerm, users]);
 
   const handleSave = async (user: Partial<User>) => {
     const method = user.id ? 'PUT' : 'POST';
@@ -126,9 +138,17 @@ export default function UsersPage() {
               Add, edit, and manage staff members.
             </CardDescription>
           </div>
-          <Button onClick={() => { setSelectedUser(undefined); setIsFormOpen(true); }}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add User
-          </Button>
+          <div className="flex items-center space-x-4">
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64"
+            />
+            <Button onClick={() => { setSelectedUser(undefined); setIsFormOpen(true); }}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add User
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -142,7 +162,7 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>

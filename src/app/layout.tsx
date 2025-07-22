@@ -22,7 +22,6 @@ export const metadata: Metadata = {
   generator: 'Next.js',
   manifest: '/manifest.webmanifest',
   keywords: ['nextjs', 'pwa', 'next-pwa', 'staff scheduling', 'workforce management'],
-  themeColor: '#0f172a',
   authors: [{ name: 'Shyft Team' }],
   icons: [
     { rel: 'apple-touch-icon', url: 'icons/icon-128x128.png' },

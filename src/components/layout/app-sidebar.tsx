@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { Logo } from '@/components/logo';
-import { navItems } from '@/lib/nav-items';
+import { navItems } from '@/lib/nav-items.tsx';
 
 export function AppSidebar() {
     return (
@@ -33,26 +33,19 @@ export function AppSidebarNav({ isMobile = false }) {
     const pathname = usePathname();
     const { user } = useAuth();
     
-    const filteredNavItems = navItems.filter(item => {
-        if (item.role) {
-            return user?.role === item.role;
-        }
-        return true;
-    });
-
     return (
         <nav className={cn("grid items-start px-2 text-sm font-medium lg:px-4", isMobile && "mt-8")}>
-            {filteredNavItems.map(({ href, icon: Icon, label }) => (
+            {navItems.map((item) => (
                 <Link
-                    key={href}
-                    href={href}
+                    key={item.href}
+                    href={item.href}
                     className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                        pathname === href && "bg-muted text-primary"
+                        pathname === item.href && "bg-muted text-primary"
                     )}
                 >
-                    <Icon className="h-4 w-4" />
-                    {label}
+                    {item.icon}
+                    {item.label}
                 </Link>
             ))}
         </nav>

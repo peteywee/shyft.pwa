@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { calculatePayForAllUsers, PayDetails } from './_utils/pay-calculator';
+import { calculatePayPeriods, PayPeriod } from './_utils/pay-calculator';
 import type { Shift, User } from '@/types';
 import {
   Table,
@@ -22,8 +22,8 @@ import {
 } from '@/components/ui/select';
 
 export default function PayHistoryPage() {
-  const [payDetails, setPayDetails] = useState<PayDetails[]>([]);
-  const [filteredPayDetails, setFilteredPayDetails] = useState<PayDetails[]>([]);
+  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
+  const [filteredPayPeriods, setFilteredPayPeriods] = useState<PayPeriod[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -47,9 +47,11 @@ export default function PayHistoryPage() {
         const usersData: User[] = await usersRes.json();
         
         setUsers(usersData);
-        const calculatedPay = calculatePayForAllUsers(shifts, usersData);
-        setPayDetails(calculatedPay);
-        setFilteredPayDetails(calculatedPay);
+        // NOTE: The pay calculator has been simplified to not be user-specific.
+        // This is a placeholder for where you might integrate user-specific pay rates.
+        const calculatedPay = calculatePayPeriods(shifts);
+        setPayPeriods(calculatedPay);
+        setFilteredPayPeriods(calculatedPay);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
@@ -61,12 +63,15 @@ export default function PayHistoryPage() {
   }, []);
   
   useEffect(() => {
+    // NOTE: Filtering by user is disabled due to the simplified pay calculator.
+    // This is a placeholder for where you might re-enable this functionality.
     if (selectedUser === 'all') {
-      setFilteredPayDetails(payDetails);
+      setFilteredPayPeriods(payPeriods);
     } else {
-      setFilteredPayDetails(payDetails.filter(p => p.userId === selectedUser));
+      // This will not filter as expected since pay periods are not user-specific.
+      setFilteredPayPeriods(payPeriods);
     }
-  }, [selectedUser, payDetails]);
+  }, [selectedUser, payPeriods]);
 
   if (isLoading) {
     return <div className="container mx-auto py-8">Loading pay history...</div>;
@@ -82,11 +87,12 @@ export default function PayHistoryPage() {
         <CardHeader>
           <CardTitle>Pay History</CardTitle>
           <CardDescription>
-            Review total hours and estimated pay for each staff member.
+            Review total hours and estimated pay for each pay period.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
+          {/* NOTE: User filter is currently disabled. */}
+          {/* <div className="mb-4">
              <Select onValueChange={setSelectedUser} value={selectedUser}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by user" />
@@ -98,23 +104,25 @@ export default function PayHistoryPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
+                <TableHead>Pay Period</TableHead>
                 <TableHead>Total Hours</TableHead>
-                <TableHead>Pay Rate</TableHead>
+                <TableHead>Regular Hours</TableHead>
+                <TableHead>Overtime Hours</TableHead>
                 <TableHead>Estimated Total Pay</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayDetails.map((pay) => (
-                <TableRow key={pay.userId}>
-                  <TableCell>{pay.userName}</TableCell>
-                  <TableCell>{pay.totalHours.toFixed(2)}</TableCell>
-                  <TableCell>${pay.payRate.toFixed(2)} / hr</TableCell>
-                  <TableCell>${pay.totalPay.toFixed(2)}</TableCell>
+              {filteredPayPeriods.map((period) => (
+                <TableRow key={period.id}>
+                  <TableCell>{period.startDate} - {period.endDate}</TableCell>
+                  <TableCell>{period.totalHours.toFixed(2)}</TableCell>
+                  <TableCell>{period.regularHours.toFixed(2)}</TableCell>
+                  <TableCell>{period.overtimeHours.toFixed(2)}</TableCell>
+                  <TableCell>${period.totalPay.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

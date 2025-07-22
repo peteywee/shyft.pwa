@@ -1,143 +1,177 @@
 
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import type { Shift, User } from '@/types';
-import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
-import { auth } from '@/lib/firebase';
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { format } from 'date-fns'
 
-import { Button } from '@/components/ui/button';
-import { DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Shift, User } from '@/types'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
+
+const formSchema = z.object({
+  userId: z.string().min(1, 'A user must be selected'),
+  userName: z.string(), // This will be populated based on the selected userId
+  date: z.string(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format (HH:MM)'),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format (HH:MM)'),
+  title: z.string().optional(),
+})
 
 interface ShiftFormProps {
-    initialData: Partial<Shift> | null;
-    staffUsers: User[];
-    closeDialog: () => void;
+  initialData: Partial<Shift> | null
+  staffUsers: User[]
+  closeDialog: () => void
 }
 
-export function ShiftForm({ initialData, staffUsers, closeDialog }: ShiftFormProps) {
-    const { toast } = useToast();
-    const { user } = useAuth();
-    const [isSaving, setIsSaving] = useState(false);
-    const [formData, setFormData] = useState({
-      id: initialData?.id || undefined,
+export function ShiftForm({
+  initialData,
+  staffUsers,
+  closeDialog,
+}: ShiftFormProps) {
+  const { toast } = useToast()
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
       userId: initialData?.userId || '',
+      userName: initialData?.userName || '',
       date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
-      startTime: initialData?.startTime || '09:00',
-      endTime: initialData?.endTime || '17:00',
+      startTime: initialData?.startTime || '',
+      endTime: initialData?.endTime || '',
       title: initialData?.title || '',
-    });
+    },
+  })
 
-    useEffect(() => {
-        setFormData({
-            id: initialData?.id || undefined,
-            userId: initialData?.userId || '',
-            date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
-            startTime: initialData?.startTime || '09:00',
-            endTime: initialData?.endTime || '17:00',
-            title: initialData?.title || '',
-        });
-    }, [initialData]);
-  
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-  
-    const handleSelectChange = (value: string, fieldName: string) => {
-      setFormData(prev => ({ ...prev, [fieldName]: value }));
-    };
-  
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!formData.userId || !formData.date || !formData.startTime || !formData.endTime) {
-        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill in all required shift details.' });
-        return;
-      }
-      
-      setIsSaving(true);
-      
-      try {
-        const idToken = await auth.currentUser?.getIdToken();
-        if (!idToken) {
-          throw new Error("Authentication token not available.");
-        }
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const selectedUser = staffUsers.find(u => u.id === values.userId)
+    if (!selectedUser) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Invalid user selected.',
+        })
+        return
+    }
 
-        const response = await fetch('/api/shifts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-          },
-          body: JSON.stringify(formData),
+    const submissionData = {
+        ...values,
+        userName: selectedUser.name,
+    };
+
+    const method = initialData?.id ? 'PUT' : 'POST';
+    const url = initialData?.id ? `/api/shifts/${initialData.id}` : '/api/shifts';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submissionData),
         });
 
-        if (!response.ok) {
-          // If the background sync is working, this might not be reached when offline,
-          // but it's good for handling immediate server errors when online.
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to save shift.');
-        }
+        if (!response.ok) throw new Error('Failed to save shift.');
 
         toast({
-          title: 'Shift Saved!',
-          description: 'Your changes have been saved. They will sync if you are offline.',
+            title: 'Shift Saved',
+            description: 'The shift has been successfully saved.',
         });
         closeDialog();
-
-      } catch (error) {
-        console.error("Failed to save shift:", error);
+    } catch (error) {
         toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Could not save shift. Your changes will be synced when you are back online.',
+            variant: 'destructive',
+            title: 'Error',
+            description: String(error),
         });
-        // We still close the dialog optimistically, as background sync will handle it.
-        closeDialog();
-      } finally {
-        setIsSaving(false);
-      }
-    };
-  
-    return (
-       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="userId">Staff Member</Label>
-          <Select name="userId" value={formData.userId} onValueChange={(value) => handleSelectChange(value, 'userId')} required>
-            <SelectTrigger id="userId">
-              <SelectValue placeholder="Select staff" />
-            </SelectTrigger>
-            <SelectContent>
-              {staffUsers.map(staff => (
-                <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <FormField
+          control={form.control}
+          name="userId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Staff Member</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a staff member" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {staffUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+            control={form.control}
+            name="startTime"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                        <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="endTime"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>End Time</FormLabel>
+                    <FormControl>
+                        <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Title (Optional)</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g. Barista" {...field} />
+                    </FormControl>
+                </FormItem>
+            )}
+        />
+        <div className="flex justify-end space-x-4">
+            <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button type="submit">Save Shift</Button>
         </div>
-        <div>
-          <Label htmlFor="date">Date</Label>
-          <Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required />
-        </div>
-        <div>
-          <Label htmlFor="startTime">Start Time</Label>
-          <Input id="startTime" name="startTime" type="time" value={formData.startTime} onChange={handleChange} required />
-        </div>
-        <div>
-          <Label htmlFor="endTime">End Time</Label>
-          <Input id="endTime" name="endTime" type="time" value={formData.endTime} onChange={handleChange} required />
-        </div>
-         <div>
-          <Label htmlFor="title">Shift Title (Optional)</Label>
-          <Input id="title" name="title" type="text" placeholder="e.g., Opening Shift" value={formData.title} onChange={handleChange} />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={closeDialog}>Cancel</Button>
-          <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Shift'}</Button>
-        </DialogFooter>
       </form>
-    );
-  };
+    </Form>
+  )
+}

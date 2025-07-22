@@ -1,157 +1,126 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import type { Shift } from '@/types';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, FileText } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { calculatePayPeriods } from './_utils/pay-calculator';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { calculatePayForAllUsers, PayDetails } from './_utils/pay-calculator';
+import type { Shift, User } from '@/types';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function PayHistoryPage() {
-  const { user, isLoading: isAuthLoading } = useAuth(); 
-  const { toast } = useToast();
-  const router = useRouter();
-  const [userShifts, setUserShifts] = useState<Shift[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [payDetails, setPayDetails] = useState<PayDetails[]>([]);
+  const [filteredPayDetails, setFilteredPayDetails] = useState<PayDetails[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If auth is done and there's no user, redirect them.
-    if (!isAuthLoading && !user) {
-      toast({ variant: 'destructive', title: 'Unauthorized', description: 'You must be logged in to view pay history.' });
-      router.replace('/login');
-      return;
-    }
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [shiftsRes, usersRes] = await Promise.all([
+          fetch('/api/shifts'),
+          fetch('/api/users'),
+        ]);
 
-    // If we have a user, start fetching their shifts.
-    if (user?.id) {
-      const q = query(collection(db, 'shifts'), where('userId', '==', user.id));
+        if (!shiftsRes.ok || !usersRes.ok) {
+          throw new Error('Failed to fetch data');
+        }
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const shiftsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Shift));
-        setUserShifts(shiftsData);
-        setIsDataLoading(false);
-      }, (error) => {
-          console.error("Error fetching user shifts for pay history:", error);
-          toast({ variant: 'destructive', title: 'Firestore Error', description: 'Could not fetch pay history shifts.' });
-          setIsDataLoading(false);
-      });
+        const shifts: Shift[] = await shiftsRes.json();
+        const usersData: User[] = await usersRes.json();
+        
+        setUsers(usersData);
+        const calculatedPay = calculatePayForAllUsers(shifts, usersData);
+        setPayDetails(calculatedPay);
+        setFilteredPayDetails(calculatedPay);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      return () => unsubscribe();
-    } else if (!isAuthLoading) {
-        // Handle case where there's no user ID but auth isn't loading anymore
-        setIsDataLoading(false);
-    }
-  }, [user, isAuthLoading, toast, router]);
-
-  const payPeriods = useMemo(() => {
-    return calculatePayPeriods(userShifts);
-  }, [userShifts]);
+    fetchData();
+  }, []);
   
-  if (isAuthLoading || isDataLoading) {
-    return <PayHistorySkeleton />;
+  useEffect(() => {
+    if (selectedUser === 'all') {
+      setFilteredPayDetails(payDetails);
+    } else {
+      setFilteredPayDetails(payDetails.filter(p => p.userId === selectedUser));
+    }
+  }, [selectedUser, payDetails]);
+
+  if (isLoading) {
+    return <div className="container mx-auto py-8">Loading pay history...</div>;
+  }
+
+  if (error) {
+    return <div className="container mx-auto py-8 text-red-500">Error: {error}</div>;
   }
 
   return (
     <div className="container mx-auto py-8">
-      <Card className="shadow-xl rounded-xl">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-headline text-primary">Pay History</CardTitle>
-          <CardDescription>Review your past weekly pay summaries based on your shifts.</CardDescription>
+          <CardTitle>Pay History</CardTitle>
+          <CardDescription>
+            Review total hours and estimated pay for each staff member.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {payPeriods.length > 0 ? (
-            <div className="space-y-6">
-              {payPeriods.map((item) => (
-                <div key={item.id} className="p-6 border rounded-lg bg-card hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                    <div className="mb-4 sm:mb-0">
-                      <h3 className="font-semibold text-lg text-primary flex items-center">
-                        <DollarSign className="mr-2 h-5 w-5" /> Pay for Week of {item.startDate}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Pay Period: {item.startDate} - {item.endDate}</p>
-                       <p className="text-sm text-muted-foreground">
-                          {item.totalHours} hours ({item.regularHours} regular + {item.overtimeHours} OT)
-                       </p>
-                    </div>
-                    <div className="text-left sm:text-right">
-                       <p className="text-xl font-bold text-foreground">${item.totalPay.toFixed(2)}</p>
-                       <p className='text-sm font-medium text-green-600'>Status: Calculated</p>
-                    </div>
-                  </div>
-                   <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
-                      <button className="text-sm text-primary hover:underline flex items-center opacity-50 cursor-not-allowed">
-                        <FileText className="mr-1 h-4 w-4" /> View Details (coming soon)
-                      </button>
-                    </div>
-                </div>
+          <div className="mb-4">
+             <Select onValueChange={setSelectedUser} value={selectedUser}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by user" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Total Hours</TableHead>
+                <TableHead>Pay Rate</TableHead>
+                <TableHead>Estimated Total Pay</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPayDetails.map((pay) => (
+                <TableRow key={pay.userId}>
+                  <TableCell>{pay.userName}</TableCell>
+                  <TableCell>{pay.totalHours.toFixed(2)}</TableCell>
+                  <TableCell>${pay.payRate.toFixed(2)} / hr</TableCell>
+                  <TableCell>${pay.totalPay.toFixed(2)}</TableCell>
+                </TableRow>
               ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <DollarSign className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-xl font-medium text-muted-foreground">No Pay History Available</p>
-              <p className="text-sm text-muted-foreground">Your calculated pay will appear here once you have recorded shifts.</p>
-            </div>
-          )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function PayHistorySkeleton() {
-  return (
-     <div className="container mx-auto py-8">
-      <Card className="shadow-xl rounded-xl">
-        <CardHeader>
-          <Skeleton className="h-8 w-1/2" />
-          <Skeleton className="h-4 w-3/4 mt-2" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="p-6 border rounded-lg">
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                <div className="mb-4 sm:mb-0 w-full sm:w-1/2">
-                  <Skeleton className="h-7 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                  <Skeleton className="h-4 w-2/3 mt-2" />
-                </div>
-                <div className="text-left sm:text-right w-full sm:w-auto">
-                  <Skeleton className="h-8 w-24 ml-auto" />
-                  <Skeleton className="h-4 w-20 mt-2 ml-auto" />
-                </div>
-              </div>
-               <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
-                  <Skeleton className="h-5 w-32" />
-                </div>
-          </div>
-           <div className="p-6 border rounded-lg">
-             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                <div className="mb-4 sm:mb-0 w-full sm:w-1/2">
-                  <Skeleton className="h-7 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                  <Skeleton className="h-4 w-2/3 mt-2" />
-                </div>
-                <div className="text-left sm:text-right w-full sm:w-auto">
-                  <Skeleton className="h-8 w-24 ml-auto" />
-                  <Skeleton className="h-4 w-20 mt-2 ml-auto" />
-                </div>
-              </div>
-               <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
-                  <Skeleton className="h-5 w-32" />
-                </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
 }

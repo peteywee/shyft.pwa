@@ -1,33 +1,48 @@
-name: Build and Deploy to Firebase Functions
+name: Build & Deploy – Firebase Functions
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      # 1.  Checkout repo
+      - uses: actions/checkout@v4
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      # 2.  PNPM setup + cache
+      - uses: pnpm/action-setup@v4
         with:
-          version: 8 # Specify pnpm version
-
-      - name: Setup Node.js and cache pnpm dependencies
-        uses: actions/setup-node@v4
+          version: 8
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
-      - name: Install Project Dependencies
-        run: pnpm install
+      # 3.  Node.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
 
-      - name: Build TypeScript (if necessary)
-        run: pnpm run build
+      # 4.  Install deps & build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build --if-present
 
-      - name: Deploy to Firebase Functions
-        run: pnpm exec firebase deploy --only functions --token "${{ secrets.FIREBASE_TOKEN }}" --project "${{ secrets.PROJECT_ID }}"
+      # 5.  Deploy Functions
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'          # to comment on PRs
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: '${{ secrets.PROJECT_ID }}'
+          target: functions
+        env:
+          FIREBASE_CLI_PREVIEWS: hostingchannels
+

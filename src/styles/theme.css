@@ -1,0 +1,8 @@
+@theme {
+  --color-background: 0 0% 100%;
+  --color-foreground: 220 15% 15%;
+  --color-border:     220 13% 91%;
+  --color-primary:    210 90% 56%;
+  --color-on-primary: 0 0% 100%;
+  --color-muted:      220 20% 97%;
+}

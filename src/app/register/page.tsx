@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -123,12 +124,12 @@ export default function RegisterPage() {
           <CardFooter>
             <div className="w-full">
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Creating Account...' : 'Create an account'}
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Create an account'}
               </Button>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{' '}
                 <Link href="/login" className="underline">
-                  Sign in
+                  <span>Sign in</span>
                 </Link>
               </div>
             </div>

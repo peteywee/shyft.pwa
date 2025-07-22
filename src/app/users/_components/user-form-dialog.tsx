@@ -29,6 +29,10 @@ const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   role: z.enum(['staff', 'management']),
+  payRate: z.preprocess(
+    (val) => Number(val),
+    z.number().min(0, 'Pay rate must be a positive number')
+  ),
 });
 
 interface UserFormDialogProps {
@@ -51,11 +55,17 @@ export function UserFormDialog({
     formState: { errors },
   } = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
-    defaultValues: user,
+    defaultValues: {
+      ...user,
+      payRate: user?.payRate || 0,
+    },
   });
   
   useEffect(() => {
-    reset(user);
+    reset({
+      ...user,
+      payRate: user?.payRate || 0,
+    });
   }, [user, reset]);
   
   const onSubmit = (data: z.infer<typeof userSchema>) => {
@@ -90,6 +100,11 @@ export function UserFormDialog({
                   <option value="management">Management</option>
               </select>
               {errors.role && <p className="text-red-500 text-sm">{errors.role.message}</p>}
+            </div>
+             <div className="grid gap-2">
+              <Label htmlFor="payRate">Pay Rate ($/hour)</Label>
+              <Input id="payRate" type="number" step="0.01" {...register('payRate')} />
+              {errors.payRate && <p className="text-red-500 text-sm">{errors.payRate.message}</p>}
             </div>
           </div>
           <DialogFooter>

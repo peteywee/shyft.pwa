@@ -1,52 +1,12 @@
 
-import Link from "next/link"
-import {
-  Bell,
-  Calendar,
-  CircleUser,
-  Home,
-  LineChart,
-  Menu,
-  Package,
-  Package2,
-  Search,
-  ShoppingCart,
-  Users,
-  CreditCard,
-  Settings,
-} from "lucide-react"
+'use client';
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/hooks/use-auth"
-import { Logo } from "../logo"
-
-const navItems = [
-    { href: "/dashboard", icon: Calendar, label: "Schedule" },
-    { href: "/users", icon: Users, label: "Users", role: 'management' },
-    { href: "/pay-history", icon: CreditCard, label: "Pay History" },
-    { href: "/profile", icon: CircleUser, label: "Profile" },
-    { href: "/settings", icon: Settings, label: "Settings" },
-]
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { Logo } from '@/components/logo';
+import { navItems } from '@/lib/nav-items';
 
 export function AppSidebar() {
     return (
@@ -56,7 +16,7 @@ export function AppSidebar() {
                     <Link
                         href="/dashboard"
                         className="flex items-center gap-2 font-semibold"
-                        legacyBehavior>
+                    >
                         <Logo />
                         <span className="">Shyft</span>
                     </Link>
@@ -90,7 +50,7 @@ export function AppSidebarNav({ isMobile = false }) {
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
                         pathname === href && "bg-muted text-primary"
                     )}
-                    legacyBehavior>
+                >
                     <Icon className="h-4 w-4" />
                     {label}
                 </Link>

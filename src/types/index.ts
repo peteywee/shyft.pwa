@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   role: Role;
+  payRate?: number; // 👈 This line was added
   avatarUrl?: string;
   phone?: string;
   department?: string;

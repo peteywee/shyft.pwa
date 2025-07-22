@@ -8,16 +8,30 @@ import AppLayout from '@/components/layout/app-layout'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://shyftmain-53739509.web.app'),
   title: 'Shyft',
-  description: 'Staff scheduling and management',
+  description: 'Shyft is a powerful and intuitive staff scheduling and management application designed to streamline workforce management for businesses of all sizes.',
   generator: 'Next.js',
   manifest: '/manifest.json',
-  keywords: ['nextjs', 'pwa', 'next-pwa'],
-  authors: [{ name: 'Your Name' }],
+  keywords: ['nextjs', 'pwa', 'next-pwa', 'staff scheduling', 'workforce management'],
+  authors: [{ name: 'Shyft Team' }],
   icons: [
-    { rel: 'apple-touch-icon', url: '/icons/icon-128x128.png' },
-    { rel: 'icon', url: '/icons/icon-128x128.png' },
+    { rel: 'apple-touch-icon', url: 'icons/icon-128x128.png' },
+    { rel: 'icon', url: 'icons/icon-128x128.png' },
   ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Shyft',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "msapplication-config": "/icons/browserconfig.xml",
+    "msapplication-TileColor": "#2B5797",
+    "msapplication-tap-highlight": "no",
+  }
 }
 
 export const viewport: Viewport = {
@@ -38,17 +52,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="application-name" content="Shyft" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Shyft" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-config" content="/icons/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#2B5797" />
-        <meta name="msapplication-tap-highlight" content="no" />
-      </head>
       <body className={inter.className}>
         <AuthProvider>
           <AppLayout>
